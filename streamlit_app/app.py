@@ -116,10 +116,13 @@ def main_dashboard():
         st.divider()
 
         # Navigation
+        nav_options = ["Dashboard", "Rubrics", "Start Exam", "Monitor Exam", "Transcripts", "Analytics"]
+        default_index = nav_options.index(st.session_state.pop("current_page", "Dashboard")) if "current_page" in st.session_state else 0
         page = st.radio(
             "Navigation",
-            ["Dashboard", "Rubrics", "Start Exam", "Monitor Exam", "Transcripts", "Analytics"],
-            label_visibility="collapsed"
+            nav_options,
+            label_visibility="collapsed",
+            index=default_index
         )
 
         st.divider()
@@ -171,6 +174,7 @@ def show_dashboard():
                     st.info(f"🔴 Active Exam - Room Code: **{active['room_code']}**")
                     if st.button("Go to Monitor"):
                         st.session_state.selected_exam = active["id"]
+                        st.session_state.current_page = "Monitor Exam"
                         st.rerun()
                 else:
                     st.success("No active exam. Ready to start a new one!")
@@ -284,6 +288,7 @@ def show_start_exam():
                     st.warning("You already have an active exam!")
                     st.info(f"Room Code: **{active['room_code']}**")
                     if st.button("Go to Monitor"):
+                        st.session_state.current_page = "Monitor Exam"
                         st.rerun()
                     if st.button("End Current Exam", type="secondary"):
                         end_response = client.post(f"/internal/exams/{active['id']}/end")
