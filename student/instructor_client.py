@@ -43,3 +43,29 @@ def send_transcript(
         timeout=30,
     )
     response.raise_for_status()
+
+
+def get_teacher_response(
+    session_id: str,
+    *,
+    base_url: str | None = None,
+) -> dict:
+    """
+    GET the teacher's response for a given session.
+    Returns { question_text, question_number, is_final, is_adapted, message }.
+    Raises on missing base URL or HTTP errors.
+    """
+    base = base_url or os.environ.get("INSTRUCTOR_SERVER_URL")
+    if not base:
+        raise ValueError(
+            "INSTRUCTOR_SERVER_URL is not set. Set it in the environment or pass base_url=."
+        )
+    url = urljoin(base.rstrip("/") + "/", f"session/{session_id}/response")
+
+    response = requests.get(
+        url,
+        headers={"Content-Type": "application/json"},
+        timeout=30,
+    )
+    response.raise_for_status()
+    return response.json()
