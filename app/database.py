@@ -1,11 +1,13 @@
+from __future__ import annotations
+
 import duckdb
 from pathlib import Path
 from contextlib import contextmanager
-from typing import Generator
+from typing import Generator, Optional
 
 from app.config import get_settings
 
-_connection: duckdb.DuckDBPyConnection | None = None
+_connection: Optional[duckdb.DuckDBPyConnection] = None
 
 
 def get_connection() -> duckdb.DuckDBPyConnection:

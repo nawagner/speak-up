@@ -1,4 +1,8 @@
-from fastapi import APIRouter, HTTPException
+import os
+import tempfile
+
+import requests
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 from app.api.schemas import (
     JoinExamRequest,
@@ -102,6 +106,116 @@ async def submit_response(session_id: str, request: SubmitResponseRequest):
         result = await orchestrator.process_student_response(
             session_id=session_id,
             response_text=request.transcript,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return QuestionResponse(
+        question_text=result.next_question,
+        question_number=result.question_number,
+        is_final=result.is_final,
+        is_adapted=result.is_adapted,
+        message=result.teacher_message,
+    )
+
+
+# ElevenLabs Speech-to-Text constants
+ELEVENLABS_STT_URL = "https://api.elevenlabs.io/v1/speech-to-text"
+ELEVENLABS_MODEL_ID = "scribe_v1"
+
+
+@router.post("/session/{session_id}/audio", response_model=QuestionResponse)
+async def submit_audio_response(
+    session_id: str,
+    audio: UploadFile = File(...),
+    question: str = Form(...),
+):
+    """
+    Accept audio file, transcribe via ElevenLabs, then process as response.
+    """
+    # Verify session exists and is active
+    session = exam_service.get_student_session(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    if session.status != SessionStatus.ACTIVE:
+        raise HTTPException(status_code=400, detail="Session is not active")
+
+    # Get ElevenLabs API key
+    api_key = os.environ.get("ELEVENLABS_API_KEY")
+    if not api_key:
+        raise HTTPException(
+            status_code=500,
+            detail="ELEVENLABS_API_KEY is not configured",
+        )
+
+    # Save uploaded audio to a temp file
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp_file:
+            content = await audio.read()
+            tmp_file.write(content)
+            tmp_path = tmp_file.name
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to save audio file: {str(e)}",
+        )
+
+    # Transcribe audio via ElevenLabs
+    try:
+        with open(tmp_path, "rb") as f:
+            files = {"file": (audio.filename or "audio.wav", f, "audio/wav")}
+            data = {"model_id": ELEVENLABS_MODEL_ID}
+            headers = {"xi-api-key": api_key}
+
+            response = requests.post(
+                ELEVENLABS_STT_URL,
+                headers=headers,
+                data=data,
+                files=files,
+                timeout=60,
+            )
+
+        if response.status_code != 200:
+            msg = response.text or response.reason
+            raise HTTPException(
+                status_code=502,
+                detail=f"ElevenLabs STT failed ({response.status_code}): {msg}",
+            )
+
+        body = response.json()
+        transcript = body.get("text")
+        if transcript is None:
+            raise HTTPException(
+                status_code=502,
+                detail="ElevenLabs response missing 'text' field",
+            )
+        transcript = transcript.strip()
+
+    except HTTPException:
+        raise
+    except requests.RequestException as e:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Failed to connect to ElevenLabs: {str(e)}",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Transcription error: {str(e)}",
+        )
+    finally:
+        # Clean up temp file
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+
+    # Process the transcribed response (same as submit_response)
+    try:
+        result = await orchestrator.process_student_response(
+            session_id=session_id,
+            response_text=transcript,
         )
     except ValueError as e:
         raise HTTPException(status_code=500, detail=str(e))
