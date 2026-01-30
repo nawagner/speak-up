@@ -211,7 +211,7 @@ async def parse_rubric(
     try:
         parsed = await coverage_service.parse_rubric(rubric.content)
         rubric_service.update_rubric_parsed_criteria(rubric.id, parsed)
-        return {"status": "parsed", "criteria_count": len(parsed.criteria)}
+        return parsed.model_dump()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to parse rubric: {str(e)}")
 
