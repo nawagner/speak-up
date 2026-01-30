@@ -271,11 +271,32 @@ The application uses **Gemini 3 Flash** via OpenRouter for:
 | `ROOM_CODE_LENGTH` | Length of room codes | `6` |
 | `MAX_STUDENTS_PER_EXAM` | Max concurrent students | `30` |
 
+## Teacher Dashboard (Next.js + v0)
+
+A Next.js + shadcn/ui teacher dashboard lives in `frontend/` and uses the same backend API. You can use it instead of or alongside Streamlit.
+
+```bash
+cd frontend && npm install && npm run dev
+```
+
+Open http://localhost:3000. To add your v0-designed UI:
+
+```bash
+cd frontend && npx shadcn@latest add "https://v0.app/chat/b/b_CeobxKCVFXU"
+```
+
+Then follow `frontend/INTEGRATION.md` to connect the new component to the backend schema and pages.
+
 ## Project Structure
 
 ```
 speak-up/
-├── app/                      # FastAPI backend
+├── frontend/                  # Next.js teacher dashboard (optional)
+│   ├── app/                   # App Router pages
+│   ├── components/            # UI + shadcn
+│   ├── lib/                   # API client, types (aligned with backend)
+│   └── INTEGRATION.md         # v0 integration steps
+├── app/                       # FastAPI backend
 │   ├── api/
 │   │   ├── routes/
 │   │   │   ├── student.py   # Student-facing endpoints
