@@ -6,6 +6,8 @@ Backend for the UI (TypeScript/Node.js): record + transcribe, and text-to-speech
 - CLI: python ui_backend.py record | speak (stdin/stdout JSON).
 """
 
+from __future__ import annotations
+
 import io
 import json
 import os
