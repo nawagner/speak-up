@@ -12,12 +12,13 @@ def send_transcript(
     student_id: str,
     test_id: str,
     transcript: str,
+    question: str = "",
     *,
     base_url: str | None = None,
     path: str | None = None,
 ) -> None:
     """
-    POST a JSON payload { student_id, test_id, transcript } to the instructor server.
+    POST a JSON payload { student_id, test_id, transcript, question } to the instructor server.
     Raises on missing base URL or HTTP errors.
     """
     base = base_url or os.environ.get("INSTRUCTOR_SERVER_URL")
@@ -32,6 +33,7 @@ def send_transcript(
         "student_id": student_id,
         "test_id": test_id,
         "transcript": transcript,
+        "question": question,
     }
 
     response = requests.post(
