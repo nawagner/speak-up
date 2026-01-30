@@ -84,7 +84,9 @@ class JoinExamResponse(BaseModel):
 
 
 class SubmitResponseRequest(BaseModel):
-    transcript: str
+    session_id: str
+    question: str
+    response: str
 
 
 class QuestionResponse(BaseModel):
