@@ -1,4 +1,4 @@
-"""Student oral exam client: prompts for ID and test ID, push-to-talk, transcribe, send."""
+"""Student oral exam client: prompts for session ID, push-to-talk, transcribe, send."""
 
 import argparse
 import os
@@ -22,16 +22,10 @@ from transcribe import transcribe
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
 
-def get_student_id(args: argparse.Namespace) -> str:
-    if args.student_id:
-        return args.student_id.strip()
-    return input("Student ID (or name): ").strip() or "unknown"
-
-
-def get_test_id(args: argparse.Namespace) -> str:
-    if args.test_id:
-        return args.test_id.strip()
-    return input("Test ID: ").strip() or "unknown"
+def get_session_id(args: argparse.Namespace) -> str:
+    if args.session_id:
+        return args.session_id.strip()
+    return input("Session ID: ").strip() or "unknown"
 
 
 def check_config() -> None:
@@ -50,7 +44,7 @@ def get_question(args: argparse.Namespace) -> str:
     return input("Question for this answer (optional): ").strip()
 
 
-def run_push_to_talk_loop(student_id: str, test_id: str, args: argparse.Namespace) -> None:
+def run_push_to_talk_loop(session_id: str, args: argparse.Namespace) -> None:
     print("\nPush-to-talk: Press Enter to start recording, then Enter again to stop and send. Type q and Enter to quit.\n")
     while True:
         question = get_question(args)
@@ -97,7 +91,7 @@ def run_push_to_talk_loop(student_id: str, test_id: str, args: argparse.Namespac
 
         print(f"Transcript: {transcript_text}")
         try:
-            send_transcript(student_id, test_id, transcript_text, question)
+            send_transcript(session_id, transcript_text, question)
             print("Sent to instructor server.")
         except requests.exceptions.RequestException as e:
             print(f"Failed to send to instructor server: {e}", file=sys.stderr)
@@ -109,16 +103,14 @@ def run_push_to_talk_loop(student_id: str, test_id: str, args: argparse.Namespac
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Student oral exam client: record, transcribe, submit.")
-    parser.add_argument("--student-id", type=str, default="", help="Student ID (skip prompt)")
-    parser.add_argument("--test-id", type=str, default="", help="Test ID (skip prompt)")
+    parser.add_argument("--session-id", type=str, default="", help="Session ID (skip prompt)")
     parser.add_argument("--question", type=str, default="", help="Question for this answer (skip prompt; for automation)")
     args = parser.parse_args()
 
     check_config()
-    student_id = get_student_id(args)
-    test_id = get_test_id(args)
-    print(f"Student: {student_id}, Test: {test_id}")
-    run_push_to_talk_loop(student_id, test_id, args)
+    session_id = get_session_id(args)
+    print(f"Session: {session_id}")
+    run_push_to_talk_loop(session_id, args)
 
 
 if __name__ == "__main__":

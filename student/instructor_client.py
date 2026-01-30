@@ -5,20 +5,17 @@ from urllib.parse import urljoin
 
 import requests
 
-DEFAULT_ENDPOINT_PATH = "/transcripts"
-
 
 def send_transcript(
-    student_id: str,
-    test_id: str,
+    session_id: str,
     transcript: str,
     question: str = "",
     *,
     base_url: str | None = None,
-    path: str | None = None,
 ) -> None:
     """
-    POST a JSON payload { student_id, test_id, transcript, question } to the instructor server.
+    POST a JSON payload { question, transcript } to the instructor server at
+    /api/v1/session/{session_id}/response.
     Raises on missing base URL or HTTP errors.
     """
     base = base_url or os.environ.get("INSTRUCTOR_SERVER_URL")
@@ -26,14 +23,12 @@ def send_transcript(
         raise ValueError(
             "INSTRUCTOR_SERVER_URL is not set. Set it in the environment or pass base_url=."
         )
-    endpoint_path = path or DEFAULT_ENDPOINT_PATH
-    url = urljoin(base.rstrip("/") + "/", endpoint_path.lstrip("/"))
+    path = f"api/v1/session/{session_id}/response"
+    url = urljoin(base.rstrip("/") + "/", path)
 
     payload = {
-        "student_id": student_id,
-        "test_id": test_id,
-        "transcript": transcript,
         "question": question,
+        "transcript": transcript,
     }
 
     response = requests.post(
@@ -60,7 +55,7 @@ def get_teacher_response(
         raise ValueError(
             "INSTRUCTOR_SERVER_URL is not set. Set it in the environment or pass base_url=."
         )
-    url = urljoin(base.rstrip("/") + "/", f"session/{session_id}/response")
+    url = urljoin(base.rstrip("/") + "/", f"api/v1/session/{session_id}/response")
 
     response = requests.get(
         url,

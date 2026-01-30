@@ -78,9 +78,69 @@ The client sends one JSON payload per recording to the instructor server:
 
 The instructor's FastAPI server should expose an endpoint that accepts this payload (e.g. `POST /transcripts`).
 
+## UI backend (for TypeScript/Node.js)
+
+A second module, `ui_backend.py`, is intended to be called by the UI (TypeScript or Node.js). It provides:
+
+1. **Record + transcribe** – record microphone until stopped, send to ElevenLabs STT, return the transcript.
+2. **Speak** – take a text string, generate speech via ElevenLabs TTS, and play the audio.
+
+### FastAPI (recommended for the UI)
+
+Run a local FastAPI server so the UI can call HTTP endpoints:
+
+```bash
+cd student
+python ui_backend.py serve
+```
+
+By default the server listens on **http://127.0.0.1:8001**. Then call:
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/record/start` | Start recording. Returns `{"status": "recording"}`. 409 if already recording. |
+| `POST` | `/record/stop` | Stop recording, transcribe, and return `{"transcript": "..."}`. 409 if not recording. |
+| `POST` | `/speak` | Body: `{"text": "..."}`. Play TTS for that text. Returns `{"status": "ok"}` when done. |
+
+**Recording flow:** The UI calls `POST /record/start`, shows “Recording…”, and when the user clicks Stop calls `POST /record/stop`. The response body of `/record/stop` contains the transcript.
+
+**Interactive API docs:** Open http://127.0.0.1:8001/docs in a browser.
+
+### Using as a library
+
+From Python you can import and call:
+
+```python
+from ui_backend import record_and_transcribe, speak
+import threading
+
+stop = threading.Event()
+# In another thread: stop.set() when user clicks Stop
+transcript = record_and_transcribe(stop)
+
+speak("Hello, this is the question.")
+```
+
+### Calling from Node/TypeScript (CLI)
+
+You can still spawn the script and use stdin/stdout (JSON) instead of HTTP:
+
+- **Record:** `python ui_backend.py record`; send `stop` on stdin; read `{"transcript": "..."}` or `{"error": "..."}` from stdout.
+- **Speak:** `python ui_backend.py speak "Your text here"` or pipe text; stdout gets `{"status": "ok"}` or `{"error": "..."}`.
+
+### TTS dependency
+
+- `speak()` uses **pydub** to decode MP3 from ElevenLabs and play it with sounddevice.
+- For MP3 support, **ffmpeg** must be installed on the system (and on PATH). See [pydub setup](https://github.com/jiaaro/pydub#getting-ffmpeg-set-up).
+
+### Environment
+
+- `ELEVENLABS_API_KEY` is used for both STT (transcribe) and TTS (speak).
+- Optional: `ELEVENLABS_VOICE_ID` – voice for TTS (default is a built-in voice ID).
+
 ## Future GUI integration
 
-A teammate will build a GUI that controls this flow. The app is structured so that:
+The app is structured so that:
 
 - **Same pipeline**: `audio.record_audio()`, `transcribe.transcribe()`, and `instructor_client.send_transcript()` can be imported and called from another process (e.g. a GUI app).
-- **CLI args**: Running `python main.py --student-id X --test-id Y` allows the GUI to launch the script with IDs pre-filled and drive the session (e.g. start/stop recording via stdin or a simple protocol later).
+- **UI backend**: `ui_backend.record_and_transcribe()` and `ui_backend.speak()` (or the CLI) let a Node/TS UI drive recording and playback without reimplementing ElevenLabs calls.
