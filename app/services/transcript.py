@@ -7,7 +7,7 @@ Handles storage and retrieval of transcript entries.
 from datetime import datetime
 from typing import Optional
 
-from uuid7 import uuid7
+from uuid_extensions import uuid7
 
 from app.database import get_db
 from app.models.domain import TranscriptEntry, EntryType
