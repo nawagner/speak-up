@@ -1,5 +1,7 @@
 """Send transcript payloads to the instructor's FastAPI server."""
 
+from __future__ import annotations
+
 import os
 from urllib.parse import urljoin
 
