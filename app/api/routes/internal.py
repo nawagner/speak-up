@@ -316,6 +316,28 @@ async def get_exam(
     )
 
 
+@router.post("/exams/{exam_id}/start", response_model=ExamResponse)
+async def start_exam(
+    exam_id: str,
+    teacher_id: str = Depends(auth_service.get_current_teacher)
+):
+    """Start an exam (exams are started on creation, this just returns the exam)."""
+    exam = exam_service.get_exam(exam_id, teacher_id)
+    if exam is None:
+        raise HTTPException(status_code=404, detail="Exam not found")
+
+    return ExamResponse(
+        id=exam.id,
+        teacher_id=exam.teacher_id,
+        rubric_id=exam.rubric_id,
+        room_code=exam.room_code,
+        status=exam.status,
+        started_at=exam.started_at,
+        ended_at=exam.ended_at,
+        created_at=exam.created_at,
+    )
+
+
 @router.post("/exams/{exam_id}/end")
 async def end_exam(
     exam_id: str,
