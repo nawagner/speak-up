@@ -271,21 +271,28 @@ The application uses **Gemini 3 Flash** via OpenRouter for:
 | `ROOM_CODE_LENGTH` | Length of room codes | `6` |
 | `MAX_STUDENTS_PER_EXAM` | Max concurrent students | `30` |
 
-## Teacher Dashboard (Next.js + v0)
+## Teacher & Student App (Next.js – single entry)
 
-A Next.js + shadcn/ui teacher dashboard lives in `frontend/` and uses the same backend API. You can use it instead of or alongside Streamlit.
+The **frontend** in `frontend/` is the main web app. It opens with a **role selection** screen so users choose **Teacher** or **Student**, then follows the right flow.
 
-```bash
-cd frontend && npm install && npm run dev
-```
+- **Teacher**: Sign in → Dashboard (rubrics, start exam, monitor, transcripts, analytics). Uses the internal API and JWT auth.
+- **Student**: Enter room code, name, and student ID → Join exam → Answer questions (type or paste transcript) → Submit until exam completes.
 
-Open http://localhost:3000. To add your v0-designed UI:
+**Run locally (backend + frontend):**
 
-```bash
-cd frontend && npx shadcn@latest add "https://v0.app/chat/b/b_CeobxKCVFXU"
-```
+1. **Backend** (from repo root):
+   ```bash
+   uvicorn app.main:app --host 0.0.0.0 --port 8000
+   ```
+2. **Frontend** (from repo root):
+   ```bash
+   cd frontend && npm install && npm run dev
+   ```
+3. Open **http://localhost:3000** → choose Teacher or Student.
 
-Then follow `frontend/INTEGRATION.md` to connect the new component to the backend schema and pages.
+Optional: copy `frontend/.env.local.example` to `frontend/.env.local` and set `NEXT_PUBLIC_API_URL=http://localhost:8000` if the backend is not on that URL.
+
+You can still use the Streamlit dashboard at http://localhost:8501 or the v0 prototype in `speak-up-1/`; the canonical app with role selection is `frontend/`.
 
 ## Project Structure
 

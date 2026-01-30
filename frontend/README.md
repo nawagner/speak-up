@@ -1,6 +1,11 @@
-# Speak-Up Teacher Dashboard (Next.js)
+# Speak-Up Web App (Next.js)
 
-React/Next.js teacher dashboard for Speak-Up. Uses the same backend API as the Streamlit app (see [README](../README.md)).
+Single web app for Speak-Up with **role selection** on the opening screen: users choose **Teacher** or **Student**, then follow the appropriate flow. Uses the FastAPI backend (see [README](../README.md)).
+
+## Flows
+
+- **Teacher**: Role selection → Sign in → Dashboard (rubrics, start exam, monitor, transcripts, analytics). Uses internal API + JWT.
+- **Student**: Role selection → Enter room code, name, student ID → Join exam → Answer questions (type or paste transcript) → Submit until complete.
 
 ## Setup
 
@@ -20,14 +25,14 @@ React/Next.js teacher dashboard for Speak-Up. Uses the same backend API as the S
    npm run dev
    ```
 
-   Open [http://localhost:3000](http://localhost:3000). Ensure the FastAPI backend is running (e.g. `uvicorn app.main:app --reload` from the repo root).
+   Open [http://localhost:3000](http://localhost:3000). Ensure the FastAPI backend is running (e.g. `uvicorn app.main:app --reload` from the repo root). The opening screen is the role selection (Teacher / Student).
 
 ## Adding the v0 component
 
 From this directory run:
 
 ```bash
- npx shadcn@latest add "https://v0.app/chat/b/b_CeobxKCVFXU"
+npx shadcn@latest add "https://v0.app/chat/b/b_CeobxKCVFXU"
 ```
 
 Then see [INTEGRATION.md](./INTEGRATION.md) to wire the new component to the backend schema and pages.
@@ -39,3 +44,4 @@ Then see [INTEGRATION.md](./INTEGRATION.md) to wire the new component to the bac
 - Tailwind CSS
 - shadcn/ui (Radix)
 - API types in `lib/types.ts` aligned with backend `app/api/schemas.py`
+- Student API (join, submit response, get question, leave) in `lib/api.ts`

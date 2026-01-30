@@ -121,7 +121,10 @@ export default function RegisterPage() {
               {loading ? "Creating…" : "Create account"}
             </Button>
             <Button type="button" variant="ghost" className="w-full" asChild>
-              <Link href="/">Back to login</Link>
+              <Link href="/login">Back to login</Link>
+            </Button>
+            <Button type="button" variant="ghost" className="w-full" asChild>
+              <Link href="/">Back to role selection</Link>
             </Button>
           </form>
         </CardContent>

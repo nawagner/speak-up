@@ -134,3 +134,31 @@ export interface AnalyticsOverview {
   total_student_sessions: number;
   completed_student_sessions: number;
 }
+
+// Student API (no auth)
+export interface JoinExamRequest {
+  room_code: string;
+  student_name: string;
+  student_id: string;
+}
+
+export interface JoinExamResponse {
+  session_id: string;
+  exam_title: string;
+  first_question: string;
+}
+
+export interface QuestionResponse {
+  question_text: string;
+  question_number: number;
+  is_final: boolean;
+  is_adapted: boolean;
+  message: string | null;
+}
+
+export interface SessionStatusResponse {
+  session_id: string;
+  status: SessionStatus;
+  question_number: number;
+  rubric_coverage_pct: number;
+}

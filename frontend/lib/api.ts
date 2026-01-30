@@ -12,6 +12,9 @@ import type {
   StruggleEventResponse,
   ExamAnalytics,
   AnalyticsOverview,
+  JoinExamResponse,
+  QuestionResponse,
+  SessionStatusResponse,
 } from "./types";
 
 const getBaseUrl = () =>
@@ -166,4 +169,23 @@ export const sessions = {
 // Analytics overview
 export const analyticsOverview = (token: string) =>
   api<AnalyticsOverview>("/internal/analytics/overview", { method: "GET", token });
+
+// Student API (no auth)
+export const student = {
+  join: (body: { room_code: string; student_name: string; student_id: string }) =>
+    api<JoinExamResponse>("/api/v1/join", { method: "POST", body }),
+  getStatus: (sessionId: string) =>
+    api<SessionStatusResponse>(`/api/v1/session/${sessionId}/status`, { method: "GET" }),
+  submitResponse: (sessionId: string, transcript: string) =>
+    api<QuestionResponse>(`/api/v1/session/${sessionId}/response`, {
+      method: "POST",
+      body: { transcript },
+    }),
+  getQuestion: (sessionId: string) =>
+    api<QuestionResponse>(`/api/v1/session/${sessionId}/question`, { method: "GET" }),
+  leave: (sessionId: string) =>
+    api<{ status: string; message?: string }>(`/api/v1/session/${sessionId}/leave`, {
+      method: "POST",
+    }),
+};
 

@@ -4,7 +4,7 @@ from functools import lru_cache
 
 class Settings(BaseSettings):
     # OpenRouter
-    openrouter_api_key: str = ""
+    openrouter_api_key: str = "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"
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     llm_model: str = "google/gemini-3-flash-preview"
 

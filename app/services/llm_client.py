@@ -11,8 +11,21 @@ class LLMClient:
     def __init__(self):
         settings = get_settings()
         self.base_url = settings.openrouter_base_url
-        self.api_key = settings.openrouter_api_key
+        self.api_key = (settings.openrouter_api_key or "").strip()
         self.model = settings.llm_model
+
+    def _headers(self) -> dict:
+        """Build request headers. Raises if API key is missing (avoids 'Illegal header value')."""
+        if not self.api_key:
+            raise ValueError(
+                "OPENROUTER_API_KEY is not set. Add it to your .env file (see .env.example)."
+            )
+        return {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://speak-up.app",
+            "X-Title": "Speak-Up Oral Exam",
+        }
 
     async def complete(
         self,
@@ -43,12 +56,7 @@ class LLMClient:
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 f"{self.base_url}/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json",
-                    "HTTP-Referer": "https://speak-up.app",
-                    "X-Title": "Speak-Up Oral Exam",
-                },
+                headers=self._headers(),
                 json={
                     "model": self.model,
                     "messages": messages,
