@@ -84,9 +84,9 @@ class JoinExamResponse(BaseModel):
 
 
 class SubmitResponseRequest(BaseModel):
-    session_id: str
-    question: str
-    response: str
+    """Student response body: transcript of speech. session_id comes from path."""
+    transcript: str
+    question: Optional[str] = None
 
 
 class QuestionResponse(BaseModel):

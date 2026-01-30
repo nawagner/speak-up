@@ -73,6 +73,14 @@ async def process_student_response(
 
     # Add the response to the transcript
     response_entry = transcript_service.add_response(session_id, response_text)
+    transcript_after_response = transcript_service.get_session_transcript(session_id)
+
+    # Last teacher message (optional) for response
+    teacher_message = None
+    for e in reversed(transcript_after_response):
+        if e.entry_type == EntryType.TEACHER_MESSAGE:
+            teacher_message = e.content
+            break
 
     # Run coverage analysis and struggle detection in parallel
     coverage_task = asyncio.create_task(
@@ -107,7 +115,6 @@ async def process_student_response(
     exam_service.update_session_coverage(session_id, coverage_result.updated_coverage)
 
     # Handle struggle event if detected
-    teacher_message: Optional[str] = None
     is_adapted = False
 
     if struggle_event is not None:
@@ -138,7 +145,7 @@ async def process_student_response(
             is_adapted=False,
             coverage_pct=coverage_result.total_coverage_pct,
             struggle_event=struggle_event,
-            teacher_message=None,
+            teacher_message=teacher_message,
         )
 
     # Generate next question

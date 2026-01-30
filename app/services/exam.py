@@ -188,10 +188,11 @@ def end_exam(exam_id: str, teacher_id: str) -> bool:
             """
             UPDATE exams SET status = 'completed', ended_at = ?
             WHERE id = ? AND teacher_id = ? AND status = 'active'
+            RETURNING id
             """,
             [datetime.utcnow(), exam_id, teacher_id]
-        )
-        return result.rowcount > 0
+        ).fetchone()
+        return result is not None
 
 
 def cancel_exam(exam_id: str, teacher_id: str) -> bool:
@@ -201,10 +202,11 @@ def cancel_exam(exam_id: str, teacher_id: str) -> bool:
             """
             UPDATE exams SET status = 'cancelled', ended_at = ?
             WHERE id = ? AND teacher_id = ? AND status IN ('pending', 'active')
+            RETURNING id
             """,
             [datetime.utcnow(), exam_id, teacher_id]
-        )
-        return result.rowcount > 0
+        ).fetchone()
+        return result is not None
 
 
 # Student Session Management

@@ -89,17 +89,14 @@ class LLMClient:
         )
 
         # Try to extract JSON from the response
-        # Handle cases where response might have markdown code blocks
+        # Strip markdown code fences: ```json ... ``` or ``` ... ```
         text = response_text.strip()
-
-        if text.startswith("```json"):
-            text = text[7:]
-        elif text.startswith("```"):
-            text = text[3:]
-
-        if text.endswith("```"):
-            text = text[:-3]
-
+        if text.startswith("```"):
+            # Remove opening fence (optional "json" after ```)
+            first = text.split("\n", 1)[0]
+            text = text[len(first) :].lstrip("\n")
+        if text.rstrip().endswith("```"):
+            text = text.rstrip()[:-3].rstrip()
         return json.loads(text.strip())
 
 

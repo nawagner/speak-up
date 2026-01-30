@@ -205,10 +205,10 @@ def delete_rubric(rubric_id: str, teacher_id: str) -> bool:
     """
     with get_db() as conn:
         result = conn.execute(
-            "DELETE FROM rubrics WHERE id = ? AND teacher_id = ?",
+            "DELETE FROM rubrics WHERE id = ? AND teacher_id = ? RETURNING id",
             [rubric_id, teacher_id]
-        )
-        return result.rowcount > 0
+        ).fetchone()
+        return result is not None
 
 
 def update_rubric_parsed_criteria(rubric_id: str, parsed_criteria: ParsedRubric) -> None:
