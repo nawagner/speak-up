@@ -1,6 +1,10 @@
 # Student Repo
 student/.env
 
+# Node
+node_modules/
+.next/
+
 # Python
 __pycache__/
 *.py[cod]
