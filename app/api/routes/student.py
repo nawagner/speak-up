@@ -105,7 +105,7 @@ async def submit_response(session_id: str, request: SubmitResponseRequest):
     try:
         result = await orchestrator.process_student_response(
             session_id=session_id,
-            response_text=request.transcript,
+            response_text=request.response,
         )
     except ValueError as e:
         raise HTTPException(status_code=500, detail=str(e))

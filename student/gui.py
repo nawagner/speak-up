@@ -407,7 +407,8 @@ class StudentExamGUI:
                 self._send_response(transcript)
                 self.root.after(0, self._on_send_success)
             except Exception as e:
-                self.root.after(0, lambda: self._on_send_error(str(e)))
+                error_msg = str(e)
+                self.root.after(0, lambda msg=error_msg: self._on_send_error(msg))
 
         threading.Thread(target=do_send, daemon=True).start()
 
@@ -425,7 +426,8 @@ class StudentExamGUI:
         }
 
         response = requests.post(url, json=payload, timeout=30)
-        response.raise_for_status()
+        if not response.ok:
+            raise ValueError(f"{response.status_code}: {response.text}")
         return response.json()
 
     def _on_send_success(self):
