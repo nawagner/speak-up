@@ -5,7 +5,7 @@ import bcrypt
 from jose import jwt, JWTError
 from fastapi import HTTPException, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from uuid7 import uuid7
+from uuid_extensions import uuid7
 
 from app.config import get_settings
 from app.database import get_db

@@ -6,7 +6,7 @@ Separate from struggle detection to ensure clean separation of concerns.
 """
 
 from typing import Optional
-from uuid7 import uuid7
+from uuid_extensions import uuid7
 
 from app.models.domain import (
     ParsedRubric,

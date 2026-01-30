@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 import json
 
-from uuid7 import uuid7
+from uuid_extensions import uuid7
 
 from app.database import get_db
 from app.models.domain import Rubric, ParsedRubric
