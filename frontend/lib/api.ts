@@ -307,8 +307,12 @@ export const student = {
     return request<{ message: string | null }>(`/api/v1/session/${sessionId}/teacher-response`)
   },
 
-  getQuestionAudio: async (sessionId: string, questionText: string): Promise<Blob> => {
-    const params = new URLSearchParams({ text: questionText })
+  getQuestionAudio: async (
+    sessionId: string,
+    questionText: string,
+    language: string = 'en'
+  ): Promise<Blob> => {
+    const params = new URLSearchParams({ text: questionText, language })
     const response = await fetch(
       `${API_URL}/api/v1/session/${sessionId}/tts?${params}`,
       {

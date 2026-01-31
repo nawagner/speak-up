@@ -7,7 +7,7 @@ interface UseQuestionAudioReturn {
   isPlaying: boolean
   isLoading: boolean
   error: string | null
-  playQuestion: (sessionId: string, questionText: string) => Promise<void>
+  playQuestion: (sessionId: string, questionText: string, language?: string) => Promise<void>
   replay: () => void
   stop: () => void
 }
@@ -33,12 +33,12 @@ export function useQuestionAudio(): UseQuestionAudioReturn {
     }
   }, [])
 
-  const playQuestion = useCallback(async (sessionId: string, questionText: string) => {
+  const playQuestion = useCallback(async (sessionId: string, questionText: string, language: string = 'en') => {
     setIsLoading(true)
     setError(null)
 
     try {
-      const audioBlob = await student.getQuestionAudio(sessionId, questionText)
+      const audioBlob = await student.getQuestionAudio(sessionId, questionText, language)
 
       // Revoke previous URL if exists
       if (audioUrlRef.current) {
