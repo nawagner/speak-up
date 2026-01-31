@@ -218,9 +218,7 @@ function ExamMonitorContent() {
       await exams.end(examId)
       toast.success('Exam ended successfully')
       setEndExamDialogOpen(false)
-      // Refresh exam data
-      const examData = await exams.get(examId)
-      setExam(examData)
+      router.push('/teacher/dashboard')
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to end exam'
       toast.error(message)
