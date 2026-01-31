@@ -9,6 +9,16 @@ import { useQuestionAudio } from '@/hooks/use-question-audio'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Mic, Loader2, CheckCircle2, MessageSquare, AlertCircle, Volume2, VolumeX } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -18,6 +28,14 @@ interface SessionInfo {
   first_question: string
   student_name: string
   language: string
+}
+
+const LANGUAGE_NAMES: Record<string, string> = {
+  en: 'English',
+  es: 'Spanish',
+  fr: 'French',
+  de: 'German',
+  zh: 'Chinese',
 }
 
 // Completion component
@@ -91,9 +109,12 @@ export default function StudentExamPage() {
   const [currentQuestion, setCurrentQuestion] = useState<string>('')
   const [questionNumber, setQuestionNumber] = useState(1)
   const [isComplete, setIsComplete] = useState(false)
+  const [showCompletionDialog, setShowCompletionDialog] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [teacherMessage, setTeacherMessage] = useState<string | null>(null)
   const [estimatedProgress, setEstimatedProgress] = useState(0)
+  const [translatedQuestion, setTranslatedQuestion] = useState<string | null>(null)
+  const [isTranslating, setIsTranslating] = useState(false)
 
   const { isRecording, audioBlob, error, startRecording, stopRecording, clearRecording } =
     useAudioRecorder()
@@ -138,6 +159,34 @@ export default function StudentExamPage() {
       playQuestion(sessionInfo.session_id, currentQuestion, sessionInfo.language)
     }
   }, [currentQuestion]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch translation when question changes (for non-English languages)
+  useEffect(() => {
+    if (!currentQuestion || !sessionInfo || isComplete) return
+    if (sessionInfo.language === 'en') {
+      setTranslatedQuestion(null)
+      return
+    }
+
+    const fetchTranslation = async () => {
+      setIsTranslating(true)
+      try {
+        const response = await student.translateQuestion(
+          sessionInfo.session_id,
+          currentQuestion,
+          sessionInfo.language
+        )
+        setTranslatedQuestion(response.translated_text)
+      } catch {
+        // Silently fail - translation is a nice-to-have
+        setTranslatedQuestion(null)
+      } finally {
+        setIsTranslating(false)
+      }
+    }
+
+    fetchTranslation()
+  }, [currentQuestion, sessionInfo, isComplete])
 
   // Poll for teacher messages
   useEffect(() => {
@@ -193,9 +242,8 @@ export default function StudentExamPage() {
       )
 
       if (response.is_final) {
-        setIsComplete(true)
-        sessionStorage.removeItem('exam_session')
-        toast.success('Exam completed successfully!')
+        // Show confirmation dialog instead of immediately completing
+        setShowCompletionDialog(true)
       } else {
         setCurrentQuestion(response.question_text)
         setQuestionNumber(response.question_number)
@@ -227,6 +275,13 @@ export default function StudentExamPage() {
 
   const dismissTeacherMessage = () => {
     setTeacherMessage(null)
+  }
+
+  const handleConfirmCompletion = () => {
+    setIsComplete(true)
+    sessionStorage.removeItem('exam_session')
+    setShowCompletionDialog(false)
+    toast.success('Exam completed successfully!')
   }
 
   // Show loading state while session loads
@@ -322,6 +377,23 @@ export default function StudentExamPage() {
           </CardHeader>
           <CardContent>
             <p className="text-lg text-foreground leading-relaxed">{currentQuestion}</p>
+            {/* Show translation below English text when non-English language selected */}
+            {sessionInfo.language !== 'en' && (
+              <div className="mt-4 border-t border-border pt-4">
+                {isTranslating ? (
+                  <p className="text-sm text-muted-foreground italic">Translating...</p>
+                ) : translatedQuestion ? (
+                  <>
+                    <p className="text-xs text-muted-foreground mb-1">
+                      In {LANGUAGE_NAMES[sessionInfo.language] || sessionInfo.language}:
+                    </p>
+                    <p className="text-base text-muted-foreground leading-relaxed">
+                      {translatedQuestion}
+                    </p>
+                  </>
+                ) : null}
+              </div>
+            )}
             {audioError && (
               <p className="mt-2 text-sm text-muted-foreground">{audioError}</p>
             )}
@@ -395,6 +467,23 @@ export default function StudentExamPage() {
           </p>
         </div>
       </div>
+
+      {/* Exam Completion Confirmation Dialog */}
+      <AlertDialog open={showCompletionDialog} onOpenChange={setShowCompletionDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Submit Exam?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have answered all questions. Are you ready to submit your exam? Once submitted,
+              your responses will be sent to your instructor for review.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Go Back</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmCompletion}>Submit Exam</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

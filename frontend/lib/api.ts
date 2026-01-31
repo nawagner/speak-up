@@ -20,6 +20,7 @@ import type {
   ExamAnalytics,
   AnalyticsOverview,
   ParsedRubric,
+  TranslateResponse,
 } from './types'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
@@ -325,6 +326,15 @@ export const student = {
     }
 
     return response.blob()
+  },
+
+  translateQuestion: async (
+    sessionId: string,
+    text: string,
+    language: string
+  ): Promise<TranslateResponse> => {
+    const params = new URLSearchParams({ text, language })
+    return request<TranslateResponse>(`/api/v1/session/${sessionId}/translate?${params}`)
   },
 }
 
