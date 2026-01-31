@@ -17,6 +17,7 @@ interface SessionInfo {
   exam_title: string
   first_question: string
   student_name: string
+  language: string
 }
 
 // Completion component
@@ -134,7 +135,7 @@ export default function StudentExamPage() {
   // Auto-play audio when question changes
   useEffect(() => {
     if (currentQuestion && sessionInfo && !isComplete) {
-      playQuestion(sessionInfo.session_id, currentQuestion)
+      playQuestion(sessionInfo.session_id, currentQuestion, sessionInfo.language)
     }
   }, [currentQuestion]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -303,7 +304,7 @@ export default function StudentExamPage() {
                   if (isAudioPlaying) {
                     stopAudio()
                   } else if (sessionInfo) {
-                    playQuestion(sessionInfo.session_id, currentQuestion)
+                    playQuestion(sessionInfo.session_id, currentQuestion, sessionInfo.language)
                   }
                 }}
                 disabled={isAudioLoading}

@@ -281,6 +281,7 @@ async def leave_exam(session_id: str):
 async def get_question_audio(
     session_id: str,
     text: str = Query(..., description="Question text to convert to speech"),
+    language: str = Query("en", description="Language code for TTS (en, es, fr, de, zh)"),
 ):
     """
     Convert question text to speech using ElevenLabs TTS.
@@ -294,8 +295,8 @@ async def get_question_audio(
     if session.status != SessionStatus.ACTIVE:
         raise HTTPException(status_code=400, detail="Session is not active")
 
-    # Generate speech
-    audio_bytes = await tts_service.generate_speech(text)
+    # Generate speech with language
+    audio_bytes = await tts_service.generate_speech(text, language=language)
 
     return Response(
         content=audio_bytes,

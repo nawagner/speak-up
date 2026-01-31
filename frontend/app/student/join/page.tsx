@@ -7,7 +7,22 @@ import { student } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { ArrowLeft, GraduationCap, Loader2 } from 'lucide-react'
+
+const LANGUAGES = [
+  { code: 'en', name: 'English', flag: '🇬🇧' },
+  { code: 'es', name: 'Spanish', flag: '🇪🇸' },
+  { code: 'fr', name: 'French', flag: '🇫🇷' },
+  { code: 'de', name: 'German', flag: '🇩🇪' },
+  { code: 'zh', name: 'Chinese', flag: '🇨🇳' },
+]
 import { toast } from 'sonner'
 
 export default function StudentJoinPage() {
@@ -17,6 +32,7 @@ export default function StudentJoinPage() {
     room_code: '',
     student_id: '',
     student_name: '',
+    language: 'en',
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -36,6 +52,7 @@ export default function StudentJoinPage() {
         exam_title: response.exam_title,
         first_question: response.first_question,
         student_name: formData.student_name,
+        language: formData.language,
       }))
 
       toast.success(`Joined exam: ${response.exam_title}`)
@@ -119,6 +136,34 @@ export default function StudentJoinPage() {
               required
               disabled={isLoading}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="language">Question Language</Label>
+            <Select
+              value={formData.language}
+              onValueChange={(value) =>
+                setFormData((prev) => ({ ...prev, language: value }))
+              }
+              disabled={isLoading}
+            >
+              <SelectTrigger id="language" className="w-full bg-input">
+                <SelectValue placeholder="Select language" />
+              </SelectTrigger>
+              <SelectContent>
+                {LANGUAGES.map((lang) => (
+                  <SelectItem key={lang.code} value={lang.code}>
+                    <span className="flex items-center gap-2">
+                      <span>{lang.flag}</span>
+                      <span>{lang.name}</span>
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Questions will be read aloud in this language
+            </p>
           </div>
 
           <Button type="submit" className="w-full" disabled={isLoading}>

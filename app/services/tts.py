@@ -8,15 +8,19 @@ from fastapi import HTTPException
 # ElevenLabs TTS configuration
 ELEVENLABS_TTS_URL = "https://api.elevenlabs.io/v1/text-to-speech"
 DEFAULT_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"  # Rachel
-DEFAULT_MODEL = "eleven_multilingual_v2"
+DEFAULT_MODEL = "eleven_flash_v2_5"
+
+# Supported language codes for eleven_flash_v2_5
+SUPPORTED_LANGUAGES = {"en", "es", "fr", "de", "zh"}
 
 
-async def generate_speech(text: str) -> bytes:
+async def generate_speech(text: str, language: str = "en") -> bytes:
     """
     Generate MP3 audio from text using ElevenLabs TTS.
 
     Args:
         text: The text to convert to speech.
+        language: Language code for TTS (en, es, fr, de, zh). Defaults to "en".
 
     Returns:
         Raw MP3 audio bytes.
@@ -31,6 +35,10 @@ async def generate_speech(text: str) -> bytes:
             detail="TTS service unavailable: ELEVENLABS_API_KEY not configured",
         )
 
+    # Validate and normalize language
+    if language not in SUPPORTED_LANGUAGES:
+        language = "en"
+
     voice_id = os.environ.get("ELEVENLABS_VOICE_ID", DEFAULT_VOICE_ID)
     url = f"{ELEVENLABS_TTS_URL}/{voice_id}"
 
@@ -43,6 +51,7 @@ async def generate_speech(text: str) -> bytes:
         "text": text,
         "model_id": DEFAULT_MODEL,
         "output_format": "mp3_44100_128",
+        "language_code": language,
     }
 
     try:
