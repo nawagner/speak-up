@@ -2,7 +2,8 @@ import os
 import tempfile
 
 import requests
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
+from fastapi.responses import Response
 
 from app.api.schemas import (
     JoinExamRequest,
@@ -16,6 +17,7 @@ from app.services import exam as exam_service
 from app.services import rubric as rubric_service
 from app.services import transcript as transcript_service
 from app.services import orchestrator
+from app.services import tts as tts_service
 
 router = APIRouter()
 
@@ -273,3 +275,33 @@ async def leave_exam(session_id: str):
     exam_service.terminate_session(session_id)
 
     return {"status": "left", "message": "You have left the exam"}
+
+
+@router.get("/session/{session_id}/tts")
+async def get_question_audio(
+    session_id: str,
+    text: str = Query(..., description="Question text to convert to speech"),
+):
+    """
+    Convert question text to speech using ElevenLabs TTS.
+    Returns MP3 audio data.
+    """
+    # Verify session exists and is active
+    session = exam_service.get_student_session(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    if session.status != SessionStatus.ACTIVE:
+        raise HTTPException(status_code=400, detail="Session is not active")
+
+    # Generate speech
+    audio_bytes = await tts_service.generate_speech(text)
+
+    return Response(
+        content=audio_bytes,
+        media_type="audio/mpeg",
+        headers={
+            "Content-Disposition": "inline",
+            "Cache-Control": "private, max-age=3600",
+        },
+    )

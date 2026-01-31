@@ -5,10 +5,11 @@ import { useRouter } from 'next/navigation'
 import { student } from '@/lib/api'
 import { QuestionResponse } from '@/lib/types'
 import { useAudioRecorder } from '@/hooks/use-audio-recorder'
+import { useQuestionAudio } from '@/hooks/use-question-audio'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { Mic, Loader2, CheckCircle2, MessageSquare, AlertCircle } from 'lucide-react'
+import { Mic, Loader2, CheckCircle2, MessageSquare, AlertCircle, Volume2, VolumeX } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface SessionInfo {
@@ -96,6 +97,15 @@ export default function StudentExamPage() {
   const { isRecording, audioBlob, error, startRecording, stopRecording, clearRecording } =
     useAudioRecorder()
 
+  const {
+    isPlaying: isAudioPlaying,
+    isLoading: isAudioLoading,
+    error: audioError,
+    playQuestion,
+    replay: replayAudio,
+    stop: stopAudio,
+  } = useQuestionAudio()
+
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const isInitializedRef = useRef(false)
 
@@ -120,6 +130,13 @@ export default function StudentExamPage() {
       router.push('/student/join')
     }
   }, [router])
+
+  // Auto-play audio when question changes
+  useEffect(() => {
+    if (currentQuestion && sessionInfo && !isComplete) {
+      playQuestion(sessionInfo.session_id, currentQuestion)
+    }
+  }, [currentQuestion]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Poll for teacher messages
   useEffect(() => {
@@ -273,11 +290,40 @@ export default function StudentExamPage() {
         {/* Current question */}
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>Current Question</CardTitle>
-            <CardDescription>Hold the button below to record your response</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Current Question</CardTitle>
+                <CardDescription>Hold the button below to record your response</CardDescription>
+              </div>
+              {/* Audio controls */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  if (isAudioPlaying) {
+                    stopAudio()
+                  } else if (sessionInfo) {
+                    playQuestion(sessionInfo.session_id, currentQuestion)
+                  }
+                }}
+                disabled={isAudioLoading}
+                title={isAudioPlaying ? 'Stop audio' : 'Read question aloud'}
+              >
+                {isAudioLoading ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : isAudioPlaying ? (
+                  <VolumeX className="h-5 w-5" />
+                ) : (
+                  <Volume2 className="h-5 w-5" />
+                )}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <p className="text-lg text-foreground leading-relaxed">{currentQuestion}</p>
+            {audioError && (
+              <p className="mt-2 text-sm text-muted-foreground">{audioError}</p>
+            )}
           </CardContent>
         </Card>
 

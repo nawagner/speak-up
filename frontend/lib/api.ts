@@ -306,6 +306,22 @@ export const student = {
   getTeacherResponse: async (sessionId: string): Promise<{ message: string | null }> => {
     return request<{ message: string | null }>(`/api/v1/session/${sessionId}/teacher-response`)
   },
+
+  getQuestionAudio: async (sessionId: string, questionText: string): Promise<Blob> => {
+    const params = new URLSearchParams({ text: questionText })
+    const response = await fetch(
+      `${API_URL}/api/v1/session/${sessionId}/tts?${params}`,
+      {
+        headers: {},
+      }
+    )
+
+    if (!response.ok) {
+      throw new ApiError(response.status, 'Failed to generate audio')
+    }
+
+    return response.blob()
+  },
 }
 
 // Analytics API
