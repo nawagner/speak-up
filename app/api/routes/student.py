@@ -11,6 +11,7 @@ from app.api.schemas import (
     SubmitResponseRequest,
     QuestionResponse,
     SessionStatusResponse,
+    TranslateResponse,
 )
 from app.models.domain import SessionStatus
 from app.services import exam as exam_service
@@ -305,4 +306,40 @@ async def get_question_audio(
             "Content-Disposition": "inline",
             "Cache-Control": "private, max-age=3600",
         },
+    )
+
+
+@router.get("/session/{session_id}/translate", response_model=TranslateResponse)
+async def translate_question(
+    session_id: str,
+    text: str = Query(..., description="Text to translate"),
+    language: str = Query("en", description="Target language code (en, es, fr, de, zh)"),
+):
+    """
+    Translate question text to the specified language.
+    Returns original and translated text.
+    """
+    # Verify session exists and is active
+    session = exam_service.get_student_session(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    if session.status != SessionStatus.ACTIVE:
+        raise HTTPException(status_code=400, detail="Session is not active")
+
+    # If English or unsupported, return original text unchanged
+    if language == "en":
+        return TranslateResponse(
+            original_text=text,
+            translated_text=text,
+            language=language,
+        )
+
+    # Translate using TTS service's translate function
+    translated = await tts_service.translate_text(text, language)
+
+    return TranslateResponse(
+        original_text=text,
+        translated_text=translated,
+        language=language,
     )

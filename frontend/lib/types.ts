@@ -172,3 +172,10 @@ export interface AnalyticsOverview {
   total_student_sessions: number
   completed_student_sessions: number
 }
+
+// Translation
+export interface TranslateResponse {
+  original_text: string
+  translated_text: string
+  language: string
+}

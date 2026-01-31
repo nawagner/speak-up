@@ -153,3 +153,11 @@ class ExamAnalytics(BaseModel):
     average_coverage_pct: float
     average_duration_minutes: Optional[float]
     struggle_frequency: dict[str, int]
+
+
+# Translation Schemas
+
+class TranslateResponse(BaseModel):
+    original_text: str
+    translated_text: str
+    language: str
