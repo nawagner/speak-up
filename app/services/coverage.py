@@ -315,6 +315,69 @@ Determine if the student has sufficiently covered all criteria."""
     )
 
 
+async def check_completion_with_exclusions(
+    rubric: ParsedRubric,
+    coverage: CoverageMap,
+    excluded_criteria: list[str],
+) -> CompletionResult:
+    """
+    Determine if the exam should end based on rubric coverage, excluding skipped criteria.
+
+    When students skip questions twice, those criteria are excluded from completion requirements.
+    The exam can complete when all non-skipped criteria are sufficiently covered.
+
+    Args:
+        rubric: Parsed rubric with criteria
+        coverage: Current coverage state
+        excluded_criteria: List of criterion IDs to exclude (skipped by student)
+
+    Returns:
+        CompletionResult indicating if exam is complete
+    """
+    # Filter out excluded criteria
+    active_criteria = [c for c in rubric.criteria if c.id not in excluded_criteria]
+
+    if not active_criteria:
+        # All criteria skipped - exam is complete by default
+        return CompletionResult(
+            is_complete=True,
+            missing_criteria=[],
+            coverage_summary="All remaining criteria have been skipped - exam complete",
+        )
+
+    client = get_llm_client()
+
+    criteria_text = "\n".join([
+        f"- {c.id}: {c.name} (covered: {coverage.covered_criteria.get(c.id, 0)*100:.0f}%)"
+        for c in active_criteria
+    ])
+
+    excluded_text = ", ".join(excluded_criteria) if excluded_criteria else "None"
+
+    prompt = f"""Evaluate if this oral exam should be considered complete.
+
+ACTIVE CRITERIA COVERAGE STATUS:
+{criteria_text}
+
+SKIPPED/EXCLUDED CRITERIA (do not consider these for completion):
+{excluded_text}
+
+Determine if the student has sufficiently covered all ACTIVE criteria.
+Note: Skipped criteria should not block completion."""
+
+    result = await client.complete_json(
+        prompt=prompt,
+        system_prompt=CHECK_COMPLETION_SYSTEM_PROMPT,
+        temperature=0.2,
+    )
+
+    return CompletionResult(
+        is_complete=result.get("is_complete", False),
+        missing_criteria=result.get("missing_criteria", []),
+        coverage_summary=result.get("coverage_summary", ""),
+    )
+
+
 def create_coverage_analysis(
     transcript_entry_id: str,
     criteria_covered: list[str],

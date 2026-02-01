@@ -85,11 +85,18 @@ def init_tables(conn: duckdb.DuckDBPyConnection) -> None:
             student_id VARCHAR NOT NULL,
             status VARCHAR DEFAULT 'active',
             rubric_coverage JSON,
+            skip_state JSON,
             started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             ended_at TIMESTAMP,
             FOREIGN KEY (exam_id) REFERENCES exams(id)
         )
     """)
+
+    # Add skip_state column if it doesn't exist (migration for existing databases)
+    try:
+        conn.execute("ALTER TABLE student_sessions ADD COLUMN skip_state JSON")
+    except duckdb.CatalogException:
+        pass  # Column already exists
 
     # Transcript entries table
     conn.execute("""
