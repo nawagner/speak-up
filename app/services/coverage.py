@@ -17,6 +17,7 @@ from app.models.domain import (
     CoverageAnalysis,
     TranscriptEntry,
 )
+from app.config import get_settings
 from app.services.llm_client import get_llm_client
 
 
@@ -68,6 +69,21 @@ Where:
 - newly_covered: list of criterion IDs that were addressed in this response
 - coverage_updates: dict mapping criterion ID to coverage percentage (0.0 to 1.0)
 - reasoning: brief explanation of your assessment
+"""
+
+GENERATE_RUBRIC_SYSTEM_PROMPT = """You are an expert educator who creates detailed assessment rubrics.
+
+Your task is to generate a comprehensive rubric in markdown format based on the given title/topic.
+
+Guidelines:
+- Create 4-8 assessment criteria appropriate for the topic
+- Each criterion should have a clear name and description
+- Include point values where appropriate
+- Use clear, measurable language
+- Format as markdown with headers and bullet points
+- Structure should be easy for students to understand
+
+Output only the rubric content in markdown format. Do not include explanatory text before or after.
 """
 
 CHECK_COMPLETION_SYSTEM_PROMPT = """You are evaluating whether a student has sufficiently covered all rubric criteria.
@@ -128,6 +144,57 @@ Extract the criteria as JSON."""
         criteria=criteria,
         total_points=result.get("total_points"),
     )
+
+
+def _validate_rubric_title(title: str) -> str:
+    if title is None:
+        raise ValueError("Title is required")
+
+    cleaned = title.strip()
+    if not cleaned:
+        raise ValueError("Title is required")
+
+    max_length = get_settings().max_rubric_title_length
+    if len(cleaned) > max_length:
+        raise ValueError(f"Title must be {max_length} characters or less")
+
+    return cleaned
+
+
+async def generate_rubric_content(title: str) -> str:
+    """
+    Generate rubric markdown content based on a title/topic.
+
+    Args:
+        title: The rubric title or topic
+
+    Returns:
+        Generated rubric content in markdown format
+    """
+    cleaned_title = _validate_rubric_title(title)
+    client = get_llm_client()
+
+    prompt = f"""Generate a detailed assessment rubric for:
+
+TOPIC/TITLE: {cleaned_title}
+
+Create a comprehensive rubric with assessment criteria, descriptions, and point values in markdown format."""
+
+    content = await client.complete(
+        prompt=prompt,
+        system_prompt=GENERATE_RUBRIC_SYSTEM_PROMPT,
+        temperature=0.7,
+        max_tokens=2048,
+    )
+
+    if not isinstance(content, str):
+        raise RuntimeError("LLM response was not text")
+
+    cleaned_content = content.strip()
+    if not cleaned_content:
+        raise RuntimeError("LLM returned empty rubric content")
+
+    return cleaned_content
 
 
 async def analyze_coverage(

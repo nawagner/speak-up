@@ -8,6 +8,7 @@
     "lint": "eslint .",
     "test": "vitest",
     "start": "next start",
+    "test": "vitest",
     "pages:build": "npx @cloudflare/next-on-pages",
     "preview": "npm run pages:build && npx wrangler pages dev",
     "deploy": "npm run pages:build && npx wrangler pages deploy"

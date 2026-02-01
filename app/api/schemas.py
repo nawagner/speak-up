@@ -123,6 +123,20 @@ class SessionTranscriptResponse(BaseModel):
     struggle_count: int
 
 
+# Student Transcript Schemas (filtered view for students)
+
+class StudentTranscriptEntryResponse(BaseModel):
+    id: str
+    entry_type: str  # 'question', 'response', or 'teacher_message'
+    content: str
+    timestamp: datetime
+
+
+class StudentTranscriptResponse(BaseModel):
+    session_id: str
+    entries: list[StudentTranscriptEntryResponse]
+
+
 # Struggle Event Schemas
 
 class StruggleEventResponse(BaseModel):

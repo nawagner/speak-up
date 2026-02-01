@@ -23,6 +23,8 @@ import {
 import { ArrowLeft, Plus, Trash2, Sparkles, FileText, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
 import { toast } from 'sonner'
 
+const MAX_RUBRIC_TITLE_LENGTH = 200
+
 export default function TeacherRubricsPage() {
   const router = useRouter()
   const { isLoading: authLoading, isAuthenticated } = useAuth()
@@ -34,6 +36,7 @@ export default function TeacherRubricsPage() {
   const [parsingId, setParsingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [isGenerating, setIsGenerating] = useState(false)
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -111,6 +114,25 @@ export default function TeacherRubricsPage() {
     }
   }
 
+  const handleGenerateContent = async () => {
+    if (!newRubric.title.trim()) {
+      toast.error('Please enter a title first')
+      return
+    }
+
+    setIsGenerating(true)
+    try {
+      const result = await rubrics.generate(newRubric.title)
+      setNewRubric((prev) => ({ ...prev, content: result.content }))
+      toast.success('Rubric content generated')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to generate rubric'
+      toast.error(message)
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'short',
@@ -162,12 +184,35 @@ export default function TeacherRubricsPage() {
                   <Input
                     id="title"
                     placeholder="e.g., Biology Oral Exam Rubric"
+                    maxLength={MAX_RUBRIC_TITLE_LENGTH}
                     value={newRubric.title}
                     onChange={(e) => setNewRubric((prev) => ({ ...prev, title: e.target.value }))}
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="content">Content (Markdown)</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="content">Content (Markdown)</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-2"
+                      onClick={handleGenerateContent}
+                      disabled={isGenerating || !newRubric.title.trim()}
+                    >
+                      {isGenerating ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-4 w-4" />
+                          Generate with AI
+                        </>
+                      )}
+                    </Button>
+                  </div>
                   <Textarea
                     id="content"
                     placeholder="Paste your rubric content here..."

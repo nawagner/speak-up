@@ -13,6 +13,7 @@ import type {
   QuestionResponse,
   SessionStatusResponse,
   SessionTranscriptResponse,
+  StudentTranscriptResponse,
   SessionSummary,
   StruggleEventResponse,
   SendMessageRequest,
@@ -179,6 +180,13 @@ export const rubrics = {
       method: 'POST',
     })
   },
+
+  generate: async (title: string): Promise<{ content: string }> => {
+    return request<{ content: string }>('/internal/rubrics/generate', {
+      method: 'POST',
+      body: JSON.stringify({ title }),
+    })
+  },
 }
 
 // Exam API
@@ -335,6 +343,10 @@ export const student = {
   ): Promise<TranslateResponse> => {
     const params = new URLSearchParams({ text, language })
     return request<TranslateResponse>(`/api/v1/session/${sessionId}/translate?${params}`)
+  },
+
+  getTranscript: async (sessionId: string): Promise<StudentTranscriptResponse> => {
+    return request<StudentTranscriptResponse>(`/api/v1/session/${sessionId}/transcript`)
   },
 }
 

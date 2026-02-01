@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { student } from '@/lib/api'
-import { QuestionResponse } from '@/lib/types'
+import { QuestionResponse, StudentTranscriptEntryResponse } from '@/lib/types'
+import { TranscriptHistory } from './transcript-history'
 import { useAudioRecorder } from '@/hooks/use-audio-recorder'
 import { useQuestionAudio } from '@/hooks/use-question-audio'
 import { Button } from '@/components/ui/button'
@@ -146,6 +147,7 @@ export default function StudentExamPage() {
   const [estimatedProgress, setEstimatedProgress] = useState(0)
   const [translatedQuestion, setTranslatedQuestion] = useState<string | null>(null)
   const [isTranslating, setIsTranslating] = useState(false)
+  const [transcriptEntries, setTranscriptEntries] = useState<StudentTranscriptEntryResponse[]>([])
 
   const { isRecording, audioBlob, error, startRecording, stopRecording, clearRecording } =
     useAudioRecorder()
@@ -246,6 +248,28 @@ export default function StudentExamPage() {
         clearInterval(pollIntervalRef.current)
       }
     }
+  }, [sessionInfo, isComplete])
+
+  // Poll for transcript updates
+  useEffect(() => {
+    if (!sessionInfo || isComplete) return
+
+    const pollTranscript = async () => {
+      try {
+        const response = await student.getTranscript(sessionInfo.session_id)
+        setTranscriptEntries(response.entries)
+      } catch {
+        // Silently ignore polling errors
+      }
+    }
+
+    // Initial fetch
+    pollTranscript()
+
+    // Set up interval (same as teacher messages: 5 seconds)
+    const intervalId = setInterval(pollTranscript, 5000)
+
+    return () => clearInterval(intervalId)
   }, [sessionInfo, isComplete])
 
   // Handle audio blob when recording stops
@@ -411,6 +435,11 @@ export default function StudentExamPage() {
           </div>
           <Progress value={estimatedProgress} className="h-2" />
         </div>
+
+        {/* Transcript history */}
+        {transcriptEntries.length > 0 && (
+          <TranscriptHistory entries={transcriptEntries} className="mb-6" />
+        )}
 
         {/* Teacher message */}
         {teacherMessage && (
