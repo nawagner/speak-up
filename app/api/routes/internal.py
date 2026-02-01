@@ -18,6 +18,12 @@ from app.api.schemas import (
     SendMessageRequest,
     OverrideQuestionRequest,
     ExamAnalytics,
+    VoiceOptionResponse,
+    VoicePreferencesUpdateRequest,
+    VoicePreferenceResponse,
+    VoicePreferencesResponse,
+    CustomVoiceRequest,
+    CustomVoiceResponse,
 )
 from app.config import get_settings
 from app.models.domain import ExamStatus
@@ -27,6 +33,7 @@ from app.services import exam as exam_service
 from app.services import transcript as transcript_service
 from app.services import coverage as coverage_service
 from app.services import struggle as struggle_service
+from app.services import voice as voice_service
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -649,3 +656,99 @@ async def get_analytics_overview(teacher_id: str = Depends(auth_service.get_curr
         "total_student_sessions": total_sessions,
         "completed_student_sessions": total_completed_sessions,
     }
+
+
+# Voice preference endpoints
+
+@router.get("/voice/options", response_model=list[VoiceOptionResponse])
+async def get_voice_options(teacher_id: str = Depends(auth_service.get_current_teacher)):
+    """Get list of available voices for selection, including teacher's custom voices."""
+    voices = await voice_service.get_available_voices(teacher_id)
+    return [
+        VoiceOptionResponse(
+            voice_id=v["voice_id"],
+            name=v["name"],
+            description=v.get("description"),
+            preview_url=v.get("preview_url"),
+        )
+        for v in voices
+    ]
+
+
+@router.get("/voice/preferences", response_model=VoicePreferencesResponse)
+async def get_voice_preferences(teacher_id: str = Depends(auth_service.get_current_teacher)):
+    """Get current teacher's voice preferences for all languages."""
+    prefs = voice_service.get_voice_preferences(teacher_id)
+    return VoicePreferencesResponse(
+        preferences={
+            lang: VoicePreferenceResponse(
+                language_code=p["language_code"],
+                voice_id=p["voice_id"],
+                voice_name=p.get("voice_name"),
+            )
+            for lang, p in prefs.items()
+        }
+    )
+
+
+@router.put("/voice/preferences", response_model=VoicePreferencesResponse)
+async def update_voice_preferences(
+    request: VoicePreferencesUpdateRequest,
+    teacher_id: str = Depends(auth_service.get_current_teacher),
+):
+    """Update voice preferences for multiple languages."""
+    updated = voice_service.update_voice_preferences_bulk(
+        teacher_id=teacher_id,
+        preferences=[p.model_dump() for p in request.preferences],
+    )
+    return VoicePreferencesResponse(
+        preferences={
+            lang: VoicePreferenceResponse(
+                language_code=p["language_code"],
+                voice_id=p["voice_id"],
+                voice_name=p.get("voice_name"),
+            )
+            for lang, p in updated.items()
+        }
+    )
+
+
+@router.get("/voice/custom", response_model=list[CustomVoiceResponse])
+async def get_custom_voices(teacher_id: str = Depends(auth_service.get_current_teacher)):
+    """Get teacher's custom voice IDs."""
+    voices = voice_service.get_custom_voices(teacher_id)
+    return [
+        CustomVoiceResponse(
+            voice_id=v["voice_id"],
+            voice_name=v.get("name"),
+        )
+        for v in voices
+    ]
+
+
+@router.post("/voice/custom", response_model=CustomVoiceResponse)
+async def add_custom_voice(
+    request: CustomVoiceRequest,
+    teacher_id: str = Depends(auth_service.get_current_teacher),
+):
+    """Add a custom voice ID for the teacher."""
+    result = voice_service.add_custom_voice(
+        teacher_id=teacher_id,
+        voice_id=request.voice_id,
+        voice_name=request.voice_name,
+    )
+    return CustomVoiceResponse(
+        voice_id=result["voice_id"],
+        voice_name=result.get("voice_name"),
+    )
+
+
+@router.delete("/voice/custom/{voice_id}")
+async def remove_custom_voice(
+    voice_id: str,
+    teacher_id: str = Depends(auth_service.get_current_teacher),
+):
+    """Remove a custom voice ID."""
+    if not voice_service.remove_custom_voice(teacher_id, voice_id):
+        raise HTTPException(status_code=404, detail="Custom voice not found")
+    return {"status": "deleted"}

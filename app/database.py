@@ -145,6 +145,35 @@ def init_tables(conn: duckdb.DuckDBPyConnection) -> None:
         )
     """)
 
+    # Teacher voice preferences table
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS teacher_voice_preferences (
+            id VARCHAR PRIMARY KEY,
+            teacher_id VARCHAR NOT NULL,
+            language_code VARCHAR NOT NULL,
+            voice_id VARCHAR NOT NULL,
+            voice_name VARCHAR,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP,
+            FOREIGN KEY (teacher_id) REFERENCES teachers(id),
+            UNIQUE(teacher_id, language_code)
+        )
+    """)
+
+    # Teacher custom voices table (for custom voice IDs)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS teacher_custom_voices (
+            id VARCHAR PRIMARY KEY,
+            teacher_id VARCHAR NOT NULL,
+            voice_id VARCHAR NOT NULL,
+            voice_name VARCHAR,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP,
+            FOREIGN KEY (teacher_id) REFERENCES teachers(id),
+            UNIQUE(teacher_id, voice_id)
+        )
+    """)
+
 
 def close_connection() -> None:
     """Close the database connection."""

@@ -22,6 +22,11 @@ import type {
   AnalyticsOverview,
   ParsedRubric,
   TranslateResponse,
+  VoiceOption,
+  VoicePreferencesResponse,
+  VoicePreferencesUpdateRequest,
+  CustomVoice,
+  CustomVoiceRequest,
 } from './types'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
@@ -354,6 +359,47 @@ export const student = {
 export const analytics = {
   overview: async (): Promise<AnalyticsOverview> => {
     return request<AnalyticsOverview>('/internal/analytics/overview')
+  },
+}
+
+// Voice Preferences API
+export const voice = {
+  getOptions: async (): Promise<VoiceOption[]> => {
+    return request<VoiceOption[]>('/internal/voice/options')
+  },
+
+  getPreferences: async (): Promise<VoicePreferencesResponse> => {
+    return request<VoicePreferencesResponse>('/internal/voice/preferences')
+  },
+
+  updatePreferences: async (
+    data: VoicePreferencesUpdateRequest
+  ): Promise<VoicePreferencesResponse> => {
+    return request<VoicePreferencesResponse>('/internal/voice/preferences', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  },
+
+  getCustomVoices: async (): Promise<CustomVoice[]> => {
+    return request<CustomVoice[]>('/internal/voice/custom')
+  },
+
+  addCustomVoice: async (data: CustomVoiceRequest): Promise<CustomVoice> => {
+    return request<CustomVoice>('/internal/voice/custom', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  },
+
+  removeCustomVoice: async (voiceId: string): Promise<void> => {
+    return request<void>(`/internal/voice/custom/${voiceId}`, {
+      method: 'DELETE',
+    })
+  },
+
+  getPreviewUrl: (voiceId: string): string => {
+    return `https://api.elevenlabs.io/v1/voices/${voiceId}/preview`
   },
 }
 

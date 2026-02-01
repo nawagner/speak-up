@@ -15,9 +15,12 @@ Speak-Up enables teachers to conduct oral examinations where:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                  Teacher Dashboard                       │
-│                   (Streamlit)                            │
-│                 http://localhost:8501                    │
+│                  Next.js Frontend                        │
+│                 http://localhost:3000                    │
+│  ┌──────────────┐  ┌───────────────┐                    │
+│  │   Student    │  │    Teacher    │                    │
+│  │     UI       │  │   Dashboard   │                    │
+│  └──────────────┘  └───────────────┘                    │
 └───────────────────────┬─────────────────────────────────┘
                         │
                         ▼
@@ -35,12 +38,6 @@ Speak-Up enables teachers to conduct oral examinations where:
 │              │   (LLM Services)     │                    │
 │              └──────────────────────┘                    │
 └─────────────────────────────────────────────────────────┘
-                         │
-                         ▼
-              ┌──────────────────────┐
-              │  Student Application │
-              │   (Not Included)     │
-              └──────────────────────┘
 ```
 
 ## Key Features
@@ -123,25 +120,21 @@ uvicorn app.main:app --reload
 
 The API will be available at http://localhost:8000
 
-### Start Teacher Dashboard (Streamlit)
+### Start Frontend (Next.js)
 
 In a separate terminal:
 
-Using uv:
 ```bash
-uv run streamlit run streamlit_app/app.py
+cd frontend
+npm install
+npm run dev
 ```
 
-Or with activated venv:
-```bash
-streamlit run streamlit_app/app.py
-```
-
-The dashboard will be available at http://localhost:8501
+The frontend will be available at http://localhost:3000
 
 ## Teacher Workflow
 
-1. **Register/Login** at http://localhost:8501
+1. **Register/Login** at http://localhost:3000/teacher/login
 2. **Create a Rubric**
    - Navigate to "Rubrics"
    - Enter title and content in Markdown format
@@ -296,8 +289,12 @@ speak-up/
 │   ├── config.py            # Configuration
 │   ├── database.py          # DuckDB setup
 │   └── main.py              # FastAPI app
-├── streamlit_app/
-│   └── app.py               # Teacher dashboard
+├── frontend/                 # Next.js frontend
+│   ├── app/
+│   │   ├── student/         # Student exam UI
+│   │   └── teacher/         # Teacher dashboard
+│   ├── components/          # React components
+│   └── lib/                 # API client and utilities
 ├── data/                    # Database files (created on first run)
 ├── tests/                   # Test files
 ├── requirements.txt         # Python dependencies
@@ -347,17 +344,8 @@ duckdb data/speak_up.duckdb
 ## Limitations
 
 - One active exam per teacher at a time
-- Student application not included (API only)
 - Manual refresh for live monitoring (no WebSockets)
 - Requires OpenRouter API credits for LLM calls
-
-## Contributing
-
-This is a teacher-facing implementation. To complete the system:
-1. Build a student application that integrates with the API
-2. Implement speech-to-text for student responses
-3. Implement text-to-speech for questions
-4. Consider ElevenLabs for voice synthesis
 
 ## License
 
@@ -369,4 +357,4 @@ For issues or questions, please open an issue on GitHub.
 
 ---
 
-Built with FastAPI, Streamlit, DuckDB, and Gemini 3 Flash via OpenRouter.
+Built with FastAPI, Next.js, DuckDB, and Gemini 3 Flash via OpenRouter.

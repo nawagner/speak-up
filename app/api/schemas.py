@@ -175,3 +175,42 @@ class TranslateResponse(BaseModel):
     original_text: str
     translated_text: str
     language: str
+
+
+# Voice Preference Schemas
+
+class VoiceOptionResponse(BaseModel):
+    voice_id: str
+    name: str
+    description: Optional[str] = None
+    preview_url: Optional[str] = None
+
+
+class VoicePreferenceRequest(BaseModel):
+    language_code: str
+    voice_id: str
+    voice_name: Optional[str] = None
+
+
+class VoicePreferencesUpdateRequest(BaseModel):
+    preferences: list[VoicePreferenceRequest]
+
+
+class VoicePreferenceResponse(BaseModel):
+    language_code: str
+    voice_id: str
+    voice_name: Optional[str] = None
+
+
+class VoicePreferencesResponse(BaseModel):
+    preferences: dict[str, VoicePreferenceResponse]
+
+
+class CustomVoiceRequest(BaseModel):
+    voice_id: str
+    voice_name: Optional[str] = None
+
+
+class CustomVoiceResponse(BaseModel):
+    voice_id: str
+    voice_name: Optional[str] = None

@@ -192,3 +192,35 @@ export interface TranslateResponse {
   translated_text: string
   language: string
 }
+
+// Voice Preferences
+export interface VoiceOption {
+  voice_id: string
+  name: string
+  description?: string
+  preview_url?: string
+}
+
+export interface VoicePreference {
+  language_code: string
+  voice_id: string
+  voice_name?: string
+}
+
+export interface VoicePreferencesResponse {
+  preferences: Record<string, VoicePreference>
+}
+
+export interface VoicePreferencesUpdateRequest {
+  preferences: VoicePreference[]
+}
+
+export interface CustomVoice {
+  voice_id: string
+  voice_name?: string
+}
+
+export interface CustomVoiceRequest {
+  voice_id: string
+  voice_name?: string
+}
