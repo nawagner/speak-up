@@ -180,6 +180,13 @@ export const rubrics = {
       method: 'POST',
     })
   },
+
+  generate: async (title: string): Promise<{ content: string }> => {
+    return request<{ content: string }>('/internal/rubrics/generate', {
+      method: 'POST',
+      body: JSON.stringify({ title }),
+    })
+  },
 }
 
 // Exam API

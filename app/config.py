@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     # App
     room_code_length: int = 6
     max_students_per_exam: int = 30
+    max_rubric_title_length: int = 200
 
     class Config:
         env_file = ".env"
