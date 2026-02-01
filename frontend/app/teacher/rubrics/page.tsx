@@ -171,14 +171,14 @@ export default function TeacherRubricsPage() {
                 New Rubric
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px]">
+            <DialogContent className="sm:max-w-[600px] max-h-[85vh] flex flex-col">
               <DialogHeader>
                 <DialogTitle>Create New Rubric</DialogTitle>
                 <DialogDescription>
                   Add a title and paste your rubric content in markdown format.
                 </DialogDescription>
               </DialogHeader>
-              <div className="grid gap-4 py-4">
+              <div className="grid gap-4 py-4 overflow-y-auto flex-1 min-h-0">
                 <div className="grid gap-2">
                   <Label htmlFor="title">Title</Label>
                   <Input
@@ -216,7 +216,7 @@ export default function TeacherRubricsPage() {
                   <Textarea
                     id="content"
                     placeholder="Paste your rubric content here..."
-                    className="min-h-[200px]"
+                    className="min-h-[200px] max-h-[50vh] resize-y"
                     value={newRubric.content}
                     onChange={(e) => setNewRubric((prev) => ({ ...prev, content: e.target.value }))}
                   />
