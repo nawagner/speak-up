@@ -6,6 +6,7 @@
     "build": "next build",
     "dev": "next dev",
     "lint": "eslint .",
+    "test": "vitest",
     "start": "next start",
     "test": "vitest",
     "pages:build": "npx @cloudflare/next-on-pages",

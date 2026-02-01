@@ -79,8 +79,24 @@ function TeacherMessage({ message }: { message: string }) {
   )
 }
 
-// Recording indicator with pulse animation
-function RecordingIndicator({ isRecording }: { isRecording: boolean }) {
+// Recording indicator with pulse animation - now interactive
+function RecordingIndicator({
+  isRecording,
+  isSubmitting,
+  onMouseDown,
+  onMouseUp,
+  onMouseLeave,
+  onTouchStart,
+  onTouchEnd,
+}: {
+  isRecording: boolean
+  isSubmitting: boolean
+  onMouseDown: () => void
+  onMouseUp: () => void
+  onMouseLeave: () => void
+  onTouchStart: () => void
+  onTouchEnd: () => void
+}) {
   return (
     <div className="relative flex h-32 w-32 items-center justify-center">
       {isRecording && (
@@ -89,17 +105,32 @@ function RecordingIndicator({ isRecording }: { isRecording: boolean }) {
           <span className="absolute inset-2 animate-pulse rounded-full bg-destructive/30" />
         </>
       )}
-      <div
-        className={`relative flex h-24 w-24 items-center justify-center rounded-full transition-colors ${
-          isRecording ? 'bg-destructive/20' : 'bg-muted'
+      <button
+        type="button"
+        className={`relative flex h-24 w-24 items-center justify-center rounded-full transition-colors select-none ${
+          isRecording
+            ? 'bg-destructive/20'
+            : isSubmitting
+              ? 'bg-muted cursor-not-allowed opacity-50'
+              : 'bg-muted hover:bg-muted/80 cursor-pointer active:scale-95'
         }`}
+        onMouseDown={onMouseDown}
+        onMouseUp={onMouseUp}
+        onMouseLeave={onMouseLeave}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+        disabled={isSubmitting}
       >
-        <Mic
-          className={`h-10 w-10 transition-colors ${
-            isRecording ? 'text-destructive' : 'text-muted-foreground'
-          }`}
-        />
-      </div>
+        {isSubmitting ? (
+          <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
+        ) : (
+          <Mic
+            className={`h-10 w-10 transition-colors ${
+              isRecording ? 'text-destructive' : 'text-muted-foreground'
+            }`}
+          />
+        )}
+      </button>
     </div>
   )
 }
@@ -132,6 +163,7 @@ export default function StudentExamPage() {
 
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const isInitializedRef = useRef(false)
+  const isSpaceHeldRef = useRef(false)
 
   // Load session from sessionStorage
   useEffect(() => {
@@ -297,6 +329,57 @@ export default function StudentExamPage() {
     stopRecording()
   }, [stopRecording])
 
+  const isKeyboardTargetBlocked = (target: EventTarget | null) => {
+    if (!(target instanceof HTMLElement)) return false
+    if (target.isContentEditable) return true
+
+    const tagName = target.tagName
+    if (tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT') return true
+
+    if (target.closest('button, [role="button"], a, [role="link"]')) return true
+
+    return false
+  }
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.code !== 'Space' && event.key !== ' ') return
+      if (event.repeat) return
+      if (isSubmitting || isRecording) return
+      if (isKeyboardTargetBlocked(event.target)) return
+      if (isSpaceHeldRef.current) return
+
+      event.preventDefault()
+      isSpaceHeldRef.current = true
+      void handleRecordingStart()
+    }
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.code !== 'Space' && event.key !== ' ') return
+      if (!isSpaceHeldRef.current) return
+
+      event.preventDefault()
+      isSpaceHeldRef.current = false
+      handleRecordingStop()
+    }
+
+    const handleWindowBlur = () => {
+      if (!isSpaceHeldRef.current) return
+      isSpaceHeldRef.current = false
+      handleRecordingStop()
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keyup', handleKeyUp)
+    window.addEventListener('blur', handleWindowBlur)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keyup', handleKeyUp)
+      window.removeEventListener('blur', handleWindowBlur)
+    }
+  }, [handleRecordingStart, handleRecordingStop, isRecording, isSubmitting])
+
   const dismissTeacherMessage = () => {
     setTeacherMessage(null)
   }
@@ -378,7 +461,7 @@ export default function StudentExamPage() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>Current Question</CardTitle>
-                <CardDescription>Hold the button below to record your response</CardDescription>
+                <CardDescription>Hold the mic below to record your response</CardDescription>
               </div>
               {/* Audio controls */}
               <Button
@@ -433,49 +516,27 @@ export default function StudentExamPage() {
         <Card>
           <CardContent className="py-8">
             <div className="flex flex-col items-center">
-              {/* Recording indicator */}
+              {/* Recording indicator - hold to record */}
               <div className="mb-6">
-                <RecordingIndicator isRecording={isRecording} />
+                <RecordingIndicator
+                  isRecording={isRecording}
+                  isSubmitting={isSubmitting}
+                  onMouseDown={handleRecordingStart}
+                  onMouseUp={handleRecordingStop}
+                  onMouseLeave={isRecording ? handleRecordingStop : () => {}}
+                  onTouchStart={handleRecordingStart}
+                  onTouchEnd={handleRecordingStop}
+                />
               </div>
 
               {/* Status text */}
-              <p className="mb-6 text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 {isSubmitting
                   ? 'Submitting your response...'
                   : isRecording
                     ? 'Release to stop recording'
-                    : 'Hold the button to record'}
+                    : 'Hold the mic to record'}
               </p>
-
-              {/* Push-to-talk button */}
-              <Button
-                size="lg"
-                variant={isRecording ? 'destructive' : 'default'}
-                className="h-16 px-8 text-lg"
-                onMouseDown={handleRecordingStart}
-                onMouseUp={handleRecordingStop}
-                onMouseLeave={isRecording ? handleRecordingStop : undefined}
-                onTouchStart={handleRecordingStart}
-                onTouchEnd={handleRecordingStop}
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Processing...
-                  </>
-                ) : isRecording ? (
-                  <>
-                    <Mic className="mr-2 h-5 w-5" />
-                    Recording...
-                  </>
-                ) : (
-                  <>
-                    <Mic className="mr-2 h-5 w-5" />
-                    Hold to Record
-                  </>
-                )}
-              </Button>
 
               {/* Microphone permission warning */}
               {error && (
