@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, HTTPException, Depends
 from typing import Optional
 
@@ -17,6 +19,7 @@ from app.api.schemas import (
     OverrideQuestionRequest,
     ExamAnalytics,
 )
+from app.config import get_settings
 from app.models.domain import ExamStatus
 from app.services import auth as auth_service
 from app.services import rubric as rubric_service
@@ -26,6 +29,7 @@ from app.services import coverage as coverage_service
 from app.services import struggle as struggle_service
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 # Authentication endpoints
@@ -214,6 +218,37 @@ async def parse_rubric(
         return parsed.model_dump()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to parse rubric: {str(e)}")
+
+
+@router.post("/rubrics/generate")
+async def generate_rubric_content(
+    request: dict,
+    teacher_id: str = Depends(auth_service.get_current_teacher)
+):
+    """Generate rubric content from a title using AI."""
+    raw_title = request.get("title", "")
+    if not isinstance(raw_title, str):
+        raise HTTPException(status_code=400, detail="Title is required")
+
+    title = raw_title.strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="Title is required")
+
+    max_length = get_settings().max_rubric_title_length
+    if len(title) > max_length:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Title must be {max_length} characters or less",
+        )
+
+    try:
+        content = await coverage_service.generate_rubric_content(title)
+        return {"content": content}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        logger.exception("Failed to generate rubric content")
+        raise HTTPException(status_code=500, detail="Failed to generate rubric")
 
 
 # Exam endpoints
