@@ -103,6 +103,40 @@ def get_session_transcript(session_id: str) -> list[TranscriptEntry]:
         ]
 
 
+def get_student_visible_transcript(session_id: str) -> list[TranscriptEntry]:
+    """
+    Get transcript entries visible to students (excludes system notes).
+
+    Args:
+        session_id: Student session ID
+
+    Returns:
+        List of TranscriptEntry objects (questions, responses, teacher messages only)
+    """
+    with get_db() as conn:
+        results = conn.execute(
+            """
+            SELECT id, session_id, entry_type, content, timestamp
+            FROM transcript_entries
+            WHERE session_id = ?
+              AND entry_type != 'system_note'
+            ORDER BY timestamp ASC
+            """,
+            [session_id]
+        ).fetchall()
+
+        return [
+            TranscriptEntry(
+                id=r[0],
+                session_id=r[1],
+                entry_type=EntryType(r[2]),
+                content=r[3],
+                timestamp=r[4],
+            )
+            for r in results
+        ]
+
+
 def get_last_question(session_id: str) -> Optional[TranscriptEntry]:
     """Get the most recent question for a session."""
     with get_db() as conn:

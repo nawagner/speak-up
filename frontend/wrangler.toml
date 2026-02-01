@@ -1,3 +1,7 @@
 name = "speak-up"
-compatibility_date = "2024-01-01"
+compatibility_date = "2026-02-01"
+compatibility_flags = ["nodejs_compat"]
+
+[env.preview]
+compatibility_date = "2026-02-01"
 compatibility_flags = ["nodejs_compat"]

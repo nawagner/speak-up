@@ -12,6 +12,8 @@ from app.api.schemas import (
     QuestionResponse,
     SessionStatusResponse,
     TranslateResponse,
+    StudentTranscriptResponse,
+    StudentTranscriptEntryResponse,
 )
 from app.models.domain import SessionStatus
 from app.services import exam as exam_service
@@ -342,4 +344,33 @@ async def translate_question(
         original_text=text,
         translated_text=translated,
         language=language,
+    )
+
+
+@router.get("/session/{session_id}/transcript", response_model=StudentTranscriptResponse)
+async def get_student_transcript(session_id: str):
+    """
+    Get student-visible transcript for the session.
+    Excludes system notes, includes only: questions, responses, teacher messages.
+    """
+    session = exam_service.get_student_session(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    if session.status not in (SessionStatus.ACTIVE, SessionStatus.COMPLETED):
+        raise HTTPException(status_code=400, detail="Session is not active")
+
+    entries = transcript_service.get_student_visible_transcript(session_id)
+
+    return StudentTranscriptResponse(
+        session_id=session_id,
+        entries=[
+            StudentTranscriptEntryResponse(
+                id=e.id,
+                entry_type=e.entry_type.value,
+                content=e.content,
+                timestamp=e.timestamp,
+            )
+            for e in entries
+        ]
     )

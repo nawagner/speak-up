@@ -13,6 +13,7 @@ import type {
   QuestionResponse,
   SessionStatusResponse,
   SessionTranscriptResponse,
+  StudentTranscriptResponse,
   SessionSummary,
   StruggleEventResponse,
   SendMessageRequest,
@@ -335,6 +336,10 @@ export const student = {
   ): Promise<TranslateResponse> => {
     const params = new URLSearchParams({ text, language })
     return request<TranslateResponse>(`/api/v1/session/${sessionId}/translate?${params}`)
+  },
+
+  getTranscript: async (sessionId: string): Promise<StudentTranscriptResponse> => {
+    return request<StudentTranscriptResponse>(`/api/v1/session/${sessionId}/transcript`)
   },
 }
 
