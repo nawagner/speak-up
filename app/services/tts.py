@@ -1,6 +1,7 @@
 """Text-to-Speech service using ElevenLabs API."""
 
 import os
+from typing import Optional
 
 import httpx
 from fastapi import HTTPException
@@ -57,7 +58,11 @@ Text to translate:
     return translated.strip()
 
 
-async def generate_speech(text: str, language: str = "en") -> bytes:
+async def generate_speech(
+    text: str,
+    language: str = "en",
+    voice_id: Optional[str] = None,
+) -> bytes:
     """
     Generate MP3 audio from text using ElevenLabs TTS.
 
@@ -67,6 +72,7 @@ async def generate_speech(text: str, language: str = "en") -> bytes:
     Args:
         text: The text to convert to speech.
         language: Language code for TTS (en, es, fr, de, zh). Defaults to "en".
+        voice_id: Optional ElevenLabs voice ID. If not provided, uses default.
 
     Returns:
         Raw MP3 audio bytes.
@@ -89,7 +95,9 @@ async def generate_speech(text: str, language: str = "en") -> bytes:
     if language != "en":
         text = await translate_text(text, language)
 
-    voice_id = os.environ.get("ELEVENLABS_VOICE_ID", DEFAULT_VOICE_ID)
+    # Use provided voice_id, or fall back to env var, or default
+    if voice_id is None:
+        voice_id = os.environ.get("ELEVENLABS_VOICE_ID", DEFAULT_VOICE_ID)
     url = f"{ELEVENLABS_TTS_URL}/{voice_id}"
 
     headers = {

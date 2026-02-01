@@ -21,6 +21,7 @@ from app.services import rubric as rubric_service
 from app.services import transcript as transcript_service
 from app.services import orchestrator
 from app.services import tts as tts_service
+from app.services import voice as voice_service
 
 router = APIRouter()
 
@@ -288,6 +289,7 @@ async def get_question_audio(
 ):
     """
     Convert question text to speech using ElevenLabs TTS.
+    Uses the teacher's voice preference for the requested language.
     Returns MP3 audio data.
     """
     # Verify session exists and is active
@@ -298,8 +300,18 @@ async def get_question_audio(
     if session.status != SessionStatus.ACTIVE:
         raise HTTPException(status_code=400, detail="Session is not active")
 
-    # Generate speech with language
-    audio_bytes = await tts_service.generate_speech(text, language=language)
+    # Get the exam to find the teacher
+    exam = exam_service.get_exam(session.exam_id)
+    if exam is None:
+        raise HTTPException(status_code=404, detail="Exam not found")
+
+    # Get teacher's voice preference for this language
+    voice_id = voice_service.get_voice_for_language(exam.teacher_id, language)
+
+    # Generate speech with language and teacher's preferred voice
+    audio_bytes = await tts_service.generate_speech(
+        text, language=language, voice_id=voice_id
+    )
 
     return Response(
         content=audio_bytes,

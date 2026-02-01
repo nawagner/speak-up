@@ -8,7 +8,7 @@ import { exams, analytics } from '@/lib/api'
 import type { ExamResponse, AnalyticsOverview } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Plus, FileText, Users, Clock, BarChart3, ChevronRight, LogOut, Loader2 } from 'lucide-react'
+import { Plus, FileText, Users, Clock, BarChart3, ChevronRight, LogOut, Loader2, Settings } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function TeacherDashboardPage() {
@@ -85,6 +85,12 @@ export default function TeacherDashboardPage() {
               <Button variant="outline" className="gap-2">
                 <FileText className="h-4 w-4" />
                 Rubrics
+              </Button>
+            </Link>
+            <Link href="/teacher/settings">
+              <Button variant="outline" className="gap-2">
+                <Settings className="h-4 w-4" />
+                Settings
               </Button>
             </Link>
             <Link href="/teacher/exam/start">
