@@ -12,6 +12,7 @@ python-jose[cryptography]>=3.3.0
 
 # HTTP Client (for OpenRouter)
 httpx>=0.26.0
+requests>=2.31.0
 
 # Data Validation
 pydantic>=2.5.0
