@@ -335,3 +335,35 @@ def get_unnotified_struggles_for_exam(exam_id: str) -> list[StruggleEvent]:
             )
             for r in results
         ]
+
+
+def get_all_struggles_for_exam(exam_id: str) -> list[StruggleEvent]:
+    """Get all struggle events for an exam."""
+    with get_db() as conn:
+        results = conn.execute(
+            """
+            SELECT se.id, se.session_id, se.transcript_entry_id, se.struggle_type,
+                   se.severity, se.llm_reasoning, se.question_adapted,
+                   se.teacher_notified, se.timestamp
+            FROM struggle_events se
+            JOIN student_sessions ss ON se.session_id = ss.id
+            WHERE ss.exam_id = ?
+            ORDER BY se.timestamp DESC
+            """,
+            [exam_id]
+        ).fetchall()
+
+        return [
+            StruggleEvent(
+                id=r[0],
+                session_id=r[1],
+                transcript_entry_id=r[2],
+                struggle_type=StruggleType(r[3]),
+                severity=Severity(r[4]),
+                llm_reasoning=r[5],
+                question_adapted=r[6],
+                teacher_notified=r[7],
+                timestamp=r[8],
+            )
+            for r in results
+        ]
