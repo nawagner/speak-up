@@ -465,7 +465,7 @@ function ExamMonitorContent() {
                   <AlertTriangle className="h-5 w-5" />
                   Struggle Events
                 </CardTitle>
-                <CardDescription>Recent student difficulties</CardDescription>
+                <CardDescription>All student difficulties</CardDescription>
               </CardHeader>
               <CardContent>
                 {struggles.length === 0 ? (

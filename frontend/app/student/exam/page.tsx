@@ -142,6 +142,7 @@ export default function StudentExamPage() {
   const [questionNumber, setQuestionNumber] = useState(1)
   const [isComplete, setIsComplete] = useState(false)
   const [showCompletionDialog, setShowCompletionDialog] = useState(false)
+  const [isReadyToSubmit, setIsReadyToSubmit] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [teacherMessage, setTeacherMessage] = useState<string | null>(null)
   const [estimatedProgress, setEstimatedProgress] = useState(0)
@@ -298,9 +299,12 @@ export default function StudentExamPage() {
       )
 
       if (response.is_final) {
-        // Show confirmation dialog instead of immediately completing
+        // Mark as ready to submit and show confirmation dialog
+        setIsReadyToSubmit(true)
         setShowCompletionDialog(true)
       } else {
+        setIsReadyToSubmit(false)
+        setShowCompletionDialog(false)
         setCurrentQuestion(response.question_text)
         setQuestionNumber(response.question_number)
         // Estimate progress (rough estimate based on typical exam length)
@@ -322,8 +326,13 @@ export default function StudentExamPage() {
 
   const handleRecordingStart = useCallback(async () => {
     if (isSubmitting) return
+    // If ready to submit, show the dialog instead of recording
+    if (isReadyToSubmit) {
+      setShowCompletionDialog(true)
+      return
+    }
     await startRecording()
-  }, [startRecording, isSubmitting])
+  }, [startRecording, isSubmitting, isReadyToSubmit])
 
   const handleRecordingStop = useCallback(() => {
     stopRecording()
@@ -430,10 +439,14 @@ export default function StudentExamPage() {
         {/* Progress indicator */}
         <div className="mb-6">
           <div className="mb-2 flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Estimated Progress</span>
-            <span className="font-medium text-foreground">{estimatedProgress}%</span>
+            <span className="text-muted-foreground">
+              {isReadyToSubmit ? 'Completed' : 'Estimated Progress'}
+            </span>
+            <span className="font-medium text-foreground">
+              {isReadyToSubmit ? '100' : estimatedProgress}%
+            </span>
           </div>
-          <Progress value={estimatedProgress} className="h-2" />
+          <Progress value={isReadyToSubmit ? 100 : estimatedProgress} className="h-2" />
         </div>
 
         {/* Transcript history */}
@@ -460,54 +473,71 @@ export default function StudentExamPage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Current Question</CardTitle>
-                <CardDescription>Hold the mic below to record your response</CardDescription>
+                <CardTitle>{isReadyToSubmit ? 'Exam Complete' : 'Current Question'}</CardTitle>
+                <CardDescription>
+                  {isReadyToSubmit
+                    ? 'You have answered all questions'
+                    : 'Hold the mic below to record your response'}
+                </CardDescription>
               </div>
-              {/* Audio controls */}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  if (isAudioPlaying) {
-                    stopAudio()
-                  } else if (sessionInfo) {
-                    playQuestion(sessionInfo.session_id, currentQuestion, sessionInfo.language)
-                  }
-                }}
-                disabled={isAudioLoading}
-                title={isAudioPlaying ? 'Stop audio' : 'Read question aloud'}
-              >
-                {isAudioLoading ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : isAudioPlaying ? (
-                  <VolumeX className="h-5 w-5" />
-                ) : (
-                  <Volume2 className="h-5 w-5" />
-                )}
-              </Button>
+              {/* Audio controls - hide when ready to submit */}
+              {!isReadyToSubmit && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    if (isAudioPlaying) {
+                      stopAudio()
+                    } else if (sessionInfo) {
+                      playQuestion(sessionInfo.session_id, currentQuestion, sessionInfo.language)
+                    }
+                  }}
+                  disabled={isAudioLoading}
+                  title={isAudioPlaying ? 'Stop audio' : 'Read question aloud'}
+                >
+                  {isAudioLoading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : isAudioPlaying ? (
+                    <VolumeX className="h-5 w-5" />
+                  ) : (
+                    <Volume2 className="h-5 w-5" />
+                  )}
+                </Button>
+              )}
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-lg text-foreground leading-relaxed">{currentQuestion}</p>
-            {/* Show translation below English text when non-English language selected */}
-            {sessionInfo.language !== 'en' && (
-              <div className="mt-4 border-t border-border pt-4">
-                {isTranslating ? (
-                  <p className="text-sm text-muted-foreground italic">Translating...</p>
-                ) : translatedQuestion ? (
-                  <>
-                    <p className="text-xs text-muted-foreground mb-1">
-                      In {LANGUAGE_NAMES[sessionInfo.language] || sessionInfo.language}:
-                    </p>
-                    <p className="text-base text-muted-foreground leading-relaxed">
-                      {translatedQuestion}
-                    </p>
-                  </>
-                ) : null}
+            {isReadyToSubmit ? (
+              <div className="flex items-center gap-3 text-chart-2">
+                <CheckCircle2 className="h-6 w-6" />
+                <p className="text-lg leading-relaxed">
+                  Great job! Click the button below to submit your exam for review.
+                </p>
               </div>
-            )}
-            {audioError && (
-              <p className="mt-2 text-sm text-muted-foreground">{audioError}</p>
+            ) : (
+              <>
+                <p className="text-lg text-foreground leading-relaxed">{currentQuestion}</p>
+                {/* Show translation below English text when non-English language selected */}
+                {sessionInfo.language !== 'en' && (
+                  <div className="mt-4 border-t border-border pt-4">
+                    {isTranslating ? (
+                      <p className="text-sm text-muted-foreground italic">Translating...</p>
+                    ) : translatedQuestion ? (
+                      <>
+                        <p className="text-xs text-muted-foreground mb-1">
+                          In {LANGUAGE_NAMES[sessionInfo.language] || sessionInfo.language}:
+                        </p>
+                        <p className="text-base text-muted-foreground leading-relaxed">
+                          {translatedQuestion}
+                        </p>
+                      </>
+                    ) : null}
+                  </div>
+                )}
+                {audioError && (
+                  <p className="mt-2 text-sm text-muted-foreground">{audioError}</p>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
@@ -535,8 +565,20 @@ export default function StudentExamPage() {
                   ? 'Submitting your response...'
                   : isRecording
                     ? 'Release to stop recording'
-                    : 'Hold the mic to record'}
+                    : isReadyToSubmit
+                      ? 'All questions answered'
+                      : 'Hold the mic to record'}
               </p>
+
+              {/* Submit button when ready */}
+              {isReadyToSubmit && !isSubmitting && (
+                <Button
+                  className="mt-4"
+                  onClick={() => setShowCompletionDialog(true)}
+                >
+                  Submit Exam
+                </Button>
+              )}
 
               {/* Microphone permission warning */}
               {error && (
@@ -552,8 +594,9 @@ export default function StudentExamPage() {
         {/* Instructions */}
         <div className="mt-6 rounded-lg bg-muted/50 p-4">
           <p className="text-center text-sm text-muted-foreground">
-            Speak clearly into your microphone. Your response will be transcribed and sent to your
-            instructor for evaluation.
+            {isReadyToSubmit
+              ? 'Your responses have been recorded. Submit your exam when you are ready.'
+              : 'Speak clearly into your microphone. Your response will be transcribed and sent to your instructor for evaluation.'}
           </p>
         </div>
       </div>

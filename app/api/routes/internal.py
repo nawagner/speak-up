@@ -479,16 +479,12 @@ async def get_exam_struggles(
     exam_id: str,
     teacher_id: str = Depends(auth_service.get_current_teacher)
 ):
-    """Get all unnotified struggle events for an exam."""
+    """Get all struggle events for an exam."""
     exam = exam_service.get_exam(exam_id, teacher_id)
     if exam is None:
         raise HTTPException(status_code=404, detail="Exam not found")
 
-    struggles = struggle_service.get_unnotified_struggles_for_exam(exam_id)
-
-    # Mark as notified
-    for s in struggles:
-        struggle_service.mark_teacher_notified(s.id)
+    struggles = struggle_service.get_all_struggles_for_exam(exam_id)
 
     return [
         {

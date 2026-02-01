@@ -1,9 +1,35 @@
-import { render, fireEvent, waitFor } from '@testing-library/react'
+import { render, fireEvent, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 
-const startRecording = vi.fn<[], Promise<void>>(() => Promise.resolve())
-const stopRecording = vi.fn()
-const clearRecording = vi.fn()
+const recorderState = vi.hoisted(() => ({
+  isRecording: false,
+  audioBlob: null as Blob | null,
+  error: null as string | null,
+  hasPermission: true,
+}))
+
+const startRecording = vi.hoisted(() => vi.fn<[], Promise<void>>(() => Promise.resolve()))
+const stopRecording = vi.hoisted(() => vi.fn())
+const clearRecording = vi.hoisted(() => vi.fn())
+const submitAudio = vi.hoisted(() => vi.fn())
+
+const setAudioBlob = (blob: Blob | null) => {
+  recorderState.audioBlob = blob
+}
+
+startRecording.mockImplementation(() => {
+  recorderState.isRecording = true
+  return Promise.resolve()
+})
+
+stopRecording.mockImplementation(() => {
+  recorderState.isRecording = false
+})
+
+clearRecording.mockImplementation(() => {
+  recorderState.audioBlob = null
+})
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -21,10 +47,7 @@ vi.mock('sonner', () => ({
 
 vi.mock('@/hooks/use-audio-recorder', () => ({
   useAudioRecorder: () => ({
-    isRecording: false,
-    audioBlob: null,
-    error: null,
-    hasPermission: true,
+    ...recorderState,
     startRecording,
     stopRecording,
     clearRecording,
@@ -45,8 +68,9 @@ vi.mock('@/hooks/use-question-audio', () => ({
 vi.mock('@/lib/api', () => ({
   student: {
     getTeacherResponse: vi.fn(async () => ({ message: null })),
+    getTranscript: vi.fn(async () => ({ entries: [] })),
     translateQuestion: vi.fn(),
-    submitAudio: vi.fn(),
+    submitAudio,
     getQuestionAudio: vi.fn(),
   },
 }))
@@ -58,6 +82,11 @@ describe('StudentExamPage spacebar recording', () => {
     startRecording.mockClear()
     stopRecording.mockClear()
     clearRecording.mockClear()
+    submitAudio.mockReset()
+    recorderState.isRecording = false
+    recorderState.audioBlob = null
+    recorderState.error = null
+    recorderState.hasPermission = true
     sessionStorage.setItem(
       'exam_session',
       JSON.stringify({
@@ -78,5 +107,52 @@ describe('StudentExamPage spacebar recording', () => {
 
     fireEvent.keyUp(window, { key: ' ', code: 'Space' })
     await waitFor(() => expect(stopRecording).toHaveBeenCalledTimes(1))
+  })
+
+  test('shows completion UI after final response', async () => {
+    submitAudio.mockResolvedValueOnce({
+      question_text: 'Final question',
+      question_number: 3,
+      is_final: true,
+      is_adapted: false,
+    })
+
+    const { rerender } = render(<StudentExamPage />)
+
+    setAudioBlob(new Blob(['audio']))
+    rerender(<StudentExamPage />)
+
+    expect(await screen.findByText('Exam Complete')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /submit exam/i })).toBeInTheDocument()
+  })
+
+  test('clears completion state when a new question arrives after go back', async () => {
+    submitAudio
+      .mockResolvedValueOnce({
+        question_text: 'Final question',
+        question_number: 3,
+        is_final: true,
+        is_adapted: false,
+      })
+      .mockResolvedValueOnce({
+        question_text: 'Next question',
+        question_number: 4,
+        is_final: false,
+        is_adapted: false,
+      })
+
+    const { rerender } = render(<StudentExamPage />)
+
+    setAudioBlob(new Blob(['audio-1']))
+    rerender(<StudentExamPage />)
+
+    const goBackButton = await screen.findByRole('button', { name: /go back/i })
+    await userEvent.click(goBackButton)
+
+    setAudioBlob(new Blob(['audio-2']))
+    rerender(<StudentExamPage />)
+
+    expect(await screen.findByText('Current Question')).toBeInTheDocument()
+    expect(screen.getByText('Next question')).toBeInTheDocument()
   })
 })
