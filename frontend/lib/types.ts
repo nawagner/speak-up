@@ -125,6 +125,19 @@ export interface SessionTranscriptResponse {
   struggle_count: number
 }
 
+// Student transcript (filtered view - excludes system notes)
+export interface StudentTranscriptEntryResponse {
+  id: string
+  entry_type: 'question' | 'response' | 'teacher_message'
+  content: string
+  timestamp: string
+}
+
+export interface StudentTranscriptResponse {
+  session_id: string
+  entries: StudentTranscriptEntryResponse[]
+}
+
 // Session summary for monitoring
 export interface SessionSummary {
   session_id: string
