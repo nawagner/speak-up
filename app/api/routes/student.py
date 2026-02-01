@@ -235,6 +235,48 @@ async def submit_audio_response(
     )
 
 
+@router.post("/session/{session_id}/skip", response_model=QuestionResponse)
+async def skip_question(session_id: str):
+    """
+    Skip the current question.
+
+    Two-stage skip logic:
+    - First skip: Generate adapted (easier) version of same question
+    - Second skip (on adapted question): Move to new topic, mark criterion as not covered
+
+    Requires at least one audio submission before skipping is allowed.
+    """
+    # Verify session exists and is active
+    session = exam_service.get_student_session(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    if session.status != SessionStatus.ACTIVE:
+        raise HTTPException(status_code=400, detail="Session is not active")
+
+    # Check if student has submitted at least one response in this session
+    skip_state = session.skip_state or {}
+    if not skip_state.get("has_submitted_in_session", False):
+        raise HTTPException(
+            status_code=400,
+            detail="Must submit at least one response before skipping"
+        )
+
+    # Process the skip request
+    try:
+        result = await orchestrator.process_skip_request(session_id=session_id)
+    except ValueError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return QuestionResponse(
+        question_text=result.next_question,
+        question_number=result.question_number,
+        is_final=result.is_final,
+        is_adapted=result.is_adapted,
+        message=result.teacher_message,
+    )
+
+
 @router.get("/session/{session_id}/question", response_model=QuestionResponse)
 async def get_current_question(session_id: str):
     """Get current/pending question for the session."""

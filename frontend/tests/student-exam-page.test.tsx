@@ -72,6 +72,7 @@ vi.mock('@/lib/api', () => ({
     translateQuestion: vi.fn(),
     submitAudio,
     getQuestionAudio: vi.fn(),
+    skipQuestion: vi.fn(),
   },
 }))
 
@@ -154,5 +155,21 @@ describe('StudentExamPage spacebar recording', () => {
 
     expect(await screen.findByText('Current Question')).toBeInTheDocument()
     expect(screen.getByText('Next question')).toBeInTheDocument()
+  })
+
+  test('shows skip button after at least one submission in session', async () => {
+    submitAudio.mockResolvedValueOnce({
+      question_text: 'Next question',
+      question_number: 2,
+      is_final: false,
+      is_adapted: false,
+    })
+
+    const { rerender } = render(<StudentExamPage />)
+
+    setAudioBlob(new Blob(['audio']))
+    rerender(<StudentExamPage />)
+
+    expect(await screen.findByRole('button', { name: /skip question/i })).toBeInTheDocument()
   })
 })

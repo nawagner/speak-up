@@ -2,7 +2,7 @@
 export type ExamStatus = 'pending' | 'active' | 'completed' | 'cancelled'
 export type SessionStatus = 'active' | 'completed' | 'terminated'
 export type EntryType = 'question' | 'response' | 'system_note' | 'teacher_message'
-export type StruggleType = 'confusion' | 'off_topic' | 'silence' | 'incorrect' | 'repetition'
+export type StruggleType = 'confusion' | 'off_topic' | 'silence' | 'incorrect' | 'repetition' | 'skip'
 export type Severity = 'low' | 'medium' | 'high'
 
 // Authentication

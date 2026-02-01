@@ -228,15 +228,16 @@ def create_student_session(
     session_id = str(uuid7())
     started_at = datetime.utcnow()
     coverage = CoverageMap()
+    skip_state: dict = {}
 
     with get_db() as conn:
         conn.execute(
             """
             INSERT INTO student_sessions
-            (id, exam_id, student_name, student_id, status, rubric_coverage, started_at)
-            VALUES (?, ?, ?, ?, 'active', ?, ?)
+            (id, exam_id, student_name, student_id, status, rubric_coverage, skip_state, started_at)
+            VALUES (?, ?, ?, ?, 'active', ?, ?, ?)
             """,
-            [session_id, exam_id, student_name, student_id, coverage.model_dump_json(), started_at]
+            [session_id, exam_id, student_name, student_id, coverage.model_dump_json(), json.dumps(skip_state), started_at]
         )
 
     return StudentSession(
@@ -246,6 +247,7 @@ def create_student_session(
         student_id=student_id,
         status=SessionStatus.ACTIVE,
         rubric_coverage=coverage,
+        skip_state=skip_state,
         started_at=started_at,
     )
 
@@ -255,7 +257,7 @@ def get_student_session(session_id: str) -> Optional[StudentSession]:
     with get_db() as conn:
         result = conn.execute(
             """
-            SELECT id, exam_id, student_name, student_id, status, rubric_coverage, started_at, ended_at
+            SELECT id, exam_id, student_name, student_id, status, rubric_coverage, skip_state, started_at, ended_at
             FROM student_sessions WHERE id = ?
             """,
             [session_id]
@@ -266,6 +268,7 @@ def get_student_session(session_id: str) -> Optional[StudentSession]:
 
         coverage_data = json.loads(result[5]) if result[5] else {}
         coverage = CoverageMap(**coverage_data)
+        skip_state = json.loads(result[6]) if result[6] else {}
 
         return StudentSession(
             id=result[0],
@@ -274,8 +277,9 @@ def get_student_session(session_id: str) -> Optional[StudentSession]:
             student_id=result[3],
             status=SessionStatus(result[4]),
             rubric_coverage=coverage,
-            started_at=result[6],
-            ended_at=result[7],
+            skip_state=skip_state,
+            started_at=result[7],
+            ended_at=result[8],
         )
 
 
@@ -284,7 +288,7 @@ def list_exam_sessions(exam_id: str) -> list[StudentSession]:
     with get_db() as conn:
         results = conn.execute(
             """
-            SELECT id, exam_id, student_name, student_id, status, rubric_coverage, started_at, ended_at
+            SELECT id, exam_id, student_name, student_id, status, rubric_coverage, skip_state, started_at, ended_at
             FROM student_sessions WHERE exam_id = ?
             ORDER BY started_at ASC
             """,
@@ -295,6 +299,7 @@ def list_exam_sessions(exam_id: str) -> list[StudentSession]:
         for r in results:
             coverage_data = json.loads(r[5]) if r[5] else {}
             coverage = CoverageMap(**coverage_data)
+            skip_state = json.loads(r[6]) if r[6] else {}
 
             sessions.append(StudentSession(
                 id=r[0],
@@ -303,8 +308,9 @@ def list_exam_sessions(exam_id: str) -> list[StudentSession]:
                 student_id=r[3],
                 status=SessionStatus(r[4]),
                 rubric_coverage=coverage,
-                started_at=r[6],
-                ended_at=r[7],
+                skip_state=skip_state,
+                started_at=r[7],
+                ended_at=r[8],
             ))
 
         return sessions
@@ -316,6 +322,15 @@ def update_session_coverage(session_id: str, coverage: CoverageMap) -> None:
         conn.execute(
             "UPDATE student_sessions SET rubric_coverage = ? WHERE id = ?",
             [coverage.model_dump_json(), session_id]
+        )
+
+
+def update_session_skip_state(session_id: str, skip_state: dict) -> None:
+    """Update the skip state for a session."""
+    with get_db() as conn:
+        conn.execute(
+            "UPDATE student_sessions SET skip_state = ? WHERE id = ?",
+            [json.dumps(skip_state), session_id]
         )
 
 

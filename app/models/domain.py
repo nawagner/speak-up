@@ -30,6 +30,7 @@ class StruggleType(str, Enum):
     SILENCE = "silence"
     INCORRECT = "incorrect"
     REPETITION = "repetition"
+    SKIP = "skip"
 
 
 class Severity(str, Enum):
@@ -92,6 +93,7 @@ class StudentSession(BaseModel):
     student_id: str
     status: SessionStatus = SessionStatus.ACTIVE
     rubric_coverage: CoverageMap = Field(default_factory=CoverageMap)
+    skip_state: dict = Field(default_factory=dict)
     started_at: datetime = Field(default_factory=datetime.utcnow)
     ended_at: Optional[datetime] = None
 

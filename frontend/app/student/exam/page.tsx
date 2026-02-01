@@ -20,7 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Mic, Loader2, CheckCircle2, MessageSquare, AlertCircle, Volume2, VolumeX } from 'lucide-react'
+import { Mic, Loader2, CheckCircle2, MessageSquare, AlertCircle, Volume2, VolumeX, SkipForward } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface SessionInfo {
@@ -149,6 +149,9 @@ export default function StudentExamPage() {
   const [translatedQuestion, setTranslatedQuestion] = useState<string | null>(null)
   const [isTranslating, setIsTranslating] = useState(false)
   const [transcriptEntries, setTranscriptEntries] = useState<StudentTranscriptEntryResponse[]>([])
+  const [hasSubmittedInSession, setHasSubmittedInSession] = useState(false)
+  const [isCurrentQuestionAdapted, setIsCurrentQuestionAdapted] = useState(false)
+  const [isSkipping, setIsSkipping] = useState(false)
 
   const { isRecording, audioBlob, error, startRecording, stopRecording, clearRecording } =
     useAudioRecorder()
@@ -298,6 +301,9 @@ export default function StudentExamPage() {
         currentQuestion
       )
 
+      // Mark that we've submitted at least once in this session (enables skip button)
+      setHasSubmittedInSession(true)
+
       if (response.is_final) {
         // Mark as ready to submit and show confirmation dialog
         setIsReadyToSubmit(true)
@@ -309,6 +315,9 @@ export default function StudentExamPage() {
         setQuestionNumber(response.question_number)
         // Estimate progress (rough estimate based on typical exam length)
         setEstimatedProgress(Math.min(95, response.question_number * 15))
+
+        // Track if the new question is adapted
+        setIsCurrentQuestionAdapted(response.is_adapted)
 
         if (response.message) {
           toast.info(response.message)
@@ -398,6 +407,37 @@ export default function StudentExamPage() {
     sessionStorage.removeItem('exam_session')
     setShowCompletionDialog(false)
     toast.success('Exam completed successfully!')
+  }
+
+  const handleSkipQuestion = async () => {
+    if (!sessionInfo || isSkipping) return
+
+    setIsSkipping(true)
+    try {
+      const response = await student.skipQuestion(sessionInfo.session_id)
+
+      if (response.is_final) {
+        setIsReadyToSubmit(true)
+        setShowCompletionDialog(true)
+      } else {
+        setCurrentQuestion(response.question_text)
+        setQuestionNumber(response.question_number)
+        setIsCurrentQuestionAdapted(response.is_adapted)
+        setHasSubmittedInSession(true)
+
+        // Show appropriate toast based on what happened
+        if (response.is_adapted) {
+          toast.info("Here's an easier version of the question")
+        } else {
+          toast.info('Moving to a new topic')
+        }
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to skip question'
+      toast.error(message)
+    } finally {
+      setIsSkipping(false)
+    }
   }
 
   // Show loading state while session loads
@@ -516,6 +556,13 @@ export default function StudentExamPage() {
               </div>
             ) : (
               <>
+                {/* Adapted question indicator */}
+                {isCurrentQuestionAdapted && (
+                  <div className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-yellow-500/10 px-3 py-1 text-xs font-medium text-yellow-600 dark:text-yellow-500">
+                    <AlertCircle className="h-3 w-3" />
+                    Simplified version
+                  </div>
+                )}
                 <p className="text-lg text-foreground leading-relaxed">{currentQuestion}</p>
                 {/* Show translation below English text when non-English language selected */}
                 {sessionInfo.language !== 'en' && (
@@ -563,12 +610,31 @@ export default function StudentExamPage() {
               <p className="text-sm text-muted-foreground">
                 {isSubmitting
                   ? 'Submitting your response...'
-                  : isRecording
-                    ? 'Release to stop recording'
-                    : isReadyToSubmit
-                      ? 'All questions answered'
-                      : 'Hold the mic to record'}
+                  : isSkipping
+                    ? 'Skipping question...'
+                    : isRecording
+                      ? 'Release to stop recording'
+                      : isReadyToSubmit
+                        ? 'All questions answered'
+                        : 'Hold the mic to record'}
               </p>
+
+              {/* Skip button - only show after submission and not when ready to submit */}
+              {hasSubmittedInSession && !isReadyToSubmit && !isSubmitting && !isRecording && (
+                <Button
+                  variant="outline"
+                  className="mt-4"
+                  onClick={handleSkipQuestion}
+                  disabled={isSkipping}
+                >
+                  {isSkipping ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <SkipForward className="mr-2 h-4 w-4" />
+                  )}
+                  {isCurrentQuestionAdapted ? 'Skip to New Topic' : 'Skip Question'}
+                </Button>
+              )}
 
               {/* Submit button when ready */}
               {isReadyToSubmit && !isSubmitting && (

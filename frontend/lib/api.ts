@@ -353,6 +353,12 @@ export const student = {
   getTranscript: async (sessionId: string): Promise<StudentTranscriptResponse> => {
     return request<StudentTranscriptResponse>(`/api/v1/session/${sessionId}/transcript`)
   },
+
+  skipQuestion: async (sessionId: string): Promise<QuestionResponse> => {
+    return request<QuestionResponse>(`/api/v1/session/${sessionId}/skip`, {
+      method: 'POST',
+    })
+  },
 }
 
 // Analytics API

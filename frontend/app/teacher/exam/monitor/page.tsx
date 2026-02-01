@@ -227,8 +227,11 @@ function ExamMonitorContent() {
     }
   }
 
-  // Get severity color
-  const getSeverityColor = (severity: string) => {
+  // Get severity color - skip events have distinct styling
+  const getSeverityColor = (severity: string, struggleType?: string) => {
+    if (struggleType === 'skip') {
+      return 'text-orange-500'
+    }
     switch (severity) {
       case 'high':
         return 'text-red-500'
@@ -237,6 +240,14 @@ function ExamMonitorContent() {
       default:
         return 'text-blue-500'
     }
+  }
+
+  // Get display label for struggle type
+  const getStruggleLabel = (struggleType: string, questionAdapted: boolean) => {
+    if (struggleType === 'skip') {
+      return questionAdapted ? 'Skipped (Adapted)' : 'Skipped (New Topic)'
+    }
+    return struggleType.replace('_', ' ')
   }
 
   // Get status badge
@@ -479,15 +490,18 @@ function ExamMonitorContent() {
                       {struggles.map((struggle) => (
                         <div
                           key={struggle.id}
-                          className="rounded-lg border border-border bg-background p-3"
+                          className={`rounded-lg border border-border bg-background p-3 ${
+                            struggle.struggle_type === 'skip' ? 'border-orange-500/30' : ''
+                          }`}
                         >
                           <div className="flex items-center justify-between">
                             <span
                               className={`text-sm font-medium capitalize ${getSeverityColor(
-                                struggle.severity
+                                struggle.severity,
+                                struggle.struggle_type
                               )}`}
                             >
-                              {struggle.struggle_type.replace('_', ' ')}
+                              {getStruggleLabel(struggle.struggle_type, struggle.question_adapted)}
                             </span>
                             <span className="text-xs text-muted-foreground">
                               {formatTime(struggle.timestamp)}
@@ -496,7 +510,7 @@ function ExamMonitorContent() {
                           <p className="mt-1 text-sm text-muted-foreground">
                             {struggle.llm_reasoning}
                           </p>
-                          {struggle.question_adapted && (
+                          {struggle.question_adapted && struggle.struggle_type !== 'skip' && (
                             <p className="mt-1 text-xs text-chart-2">Question adapted</p>
                           )}
                         </div>

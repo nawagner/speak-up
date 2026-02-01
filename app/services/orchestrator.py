@@ -16,6 +16,8 @@ from app.models.domain import (
     CoverageMap,
     CoverageResult,
     StruggleEvent,
+    StruggleType,
+    Severity,
     TranscriptEntry,
     EntryType,
 )
@@ -168,6 +170,23 @@ async def process_student_response(
     transcript_service.add_question(session_id, next_question)
     question_number = transcript_service.count_questions(session_id)
 
+    # Update skip state for the newly generated question
+    skip_state = session.skip_state.copy()
+    skip_state["has_submitted_in_session"] = True
+    if struggle_event is not None and skip_state.get("current_criteria"):
+        current_criteria = skip_state.get("current_criteria", [])
+    else:
+        current_criteria = [
+            c.id for c in question_service.select_target_criteria(
+                rubric=rubric.parsed_criteria,
+                coverage=coverage_result.updated_coverage,
+            )[:5]
+        ]
+    skip_state["current_criteria"] = current_criteria
+    skip_state["has_submitted_for_current"] = False
+    skip_state["current_question_is_adapted"] = is_adapted
+    exam_service.update_session_skip_state(session_id, skip_state)
+
     return ProcessedResponse(
         next_question=next_question,
         question_number=question_number,
@@ -199,6 +218,18 @@ async def start_student_session(
     # Add to transcript
     transcript_service.add_question(session_id, first_question)
 
+    skip_state = {
+        "has_submitted_for_current": False,
+        "has_submitted_in_session": False,
+        "current_question_is_adapted": False,
+        "current_criteria": [c.id for c in question_service.select_target_criteria(
+            rubric=rubric,
+            coverage=CoverageMap(),
+        )[:5]],
+        "skipped_criteria": [],
+    }
+    exam_service.update_session_skip_state(session_id, skip_state)
+
     return first_question
 
 
@@ -223,3 +254,159 @@ async def get_pending_question(session_id: str) -> Optional[str]:
         return last_entry.content
 
     return None
+
+
+async def process_skip_request(session_id: str) -> ProcessedResponse:
+    """
+    Process a skip request from a student.
+
+    Two-stage skip logic:
+    1. If current question is NOT adapted -> Generate adapted version of same question
+    2. If current question IS already adapted -> Move to new topic, mark criterion as not covered
+
+    Args:
+        session_id: Student session ID
+
+    Returns:
+        ProcessedResponse with next question
+    """
+    # Get session and related data
+    session = exam_service.get_student_session(session_id)
+    if session is None:
+        raise ValueError("Session not found")
+
+    exam = exam_service.get_exam(session.exam_id)
+    if exam is None:
+        raise ValueError("Exam not found")
+
+    rubric = rubric_service.get_rubric(exam.rubric_id)
+    if rubric is None or rubric.parsed_criteria is None:
+        raise ValueError("Rubric not found or not parsed")
+
+    # Get skip state
+    skip_state = session.skip_state.copy()
+    current_is_adapted = skip_state.get("current_question_is_adapted", False)
+    skipped_criteria = skip_state.get("skipped_criteria", [])
+    current_criteria = skip_state.get("current_criteria", [])
+
+    # Get transcript and last question
+    transcript = transcript_service.get_session_transcript(session_id)
+    last_question_entry = transcript_service.get_last_question(session_id)
+    last_question = last_question_entry.content if last_question_entry else ""
+
+    # Create a skip struggle event
+    skip_event = struggle_service.create_struggle_event(
+        session_id=session_id,
+        transcript_entry_id=last_question_entry.id if last_question_entry else "",
+        struggle_type=StruggleType.SKIP,
+        severity=Severity.MEDIUM if current_is_adapted else Severity.LOW,
+        llm_reasoning="Student skipped this question" + (
+            " (second skip - moving to new topic)" if current_is_adapted else " (adapting question)"
+        ),
+        question_adapted=not current_is_adapted,
+    )
+
+    # Calculate current coverage percentage
+    coverage_pct = 0.0
+    if session.rubric_coverage.covered_criteria:
+        total_criteria = len(rubric.parsed_criteria.criteria)
+        if total_criteria > 0:
+            coverage_pct = sum(session.rubric_coverage.covered_criteria.values()) / total_criteria
+
+    if not current_is_adapted:
+        # First skip: Generate adapted version of same question
+        next_question = await struggle_service.generate_adapted_question(
+            original_question=last_question,
+            struggle_event=skip_event,
+            history=transcript,
+        )
+
+        # Update skip state
+        skip_state["current_question_is_adapted"] = True
+        skip_state["has_submitted_for_current"] = False
+        if not current_criteria:
+            skip_state["current_criteria"] = [
+                c.id for c in question_service.select_target_criteria(
+                    rubric=rubric.parsed_criteria,
+                    coverage=session.rubric_coverage,
+                )[:5]
+            ]
+        exam_service.update_session_skip_state(session_id, skip_state)
+
+        # Add adapted question to transcript with a system note
+        transcript_service.add_system_note(session_id, "Student requested skip - question adapted")
+        transcript_service.add_question(session_id, next_question)
+
+        return ProcessedResponse(
+            next_question=next_question,
+            question_number=transcript_service.count_questions(session_id),
+            is_final=False,
+            is_adapted=True,
+            coverage_pct=coverage_pct,
+            struggle_event=skip_event,
+            teacher_message="Question adapted after skip",
+        )
+    else:
+        # Second skip: Move to new topic, mark as not covered
+        transcript_service.add_system_note(
+            session_id,
+            "Student skipped twice - moving to new topic"
+        )
+
+        if current_criteria:
+            for criterion_id in current_criteria:
+                if criterion_id not in skipped_criteria:
+                    skipped_criteria.append(criterion_id)
+
+        # Generate question for a DIFFERENT topic (excluding skipped criteria)
+        next_question = await question_service.generate_question_excluding_criteria(
+            rubric=rubric.parsed_criteria,
+            transcript=transcript,
+            coverage=session.rubric_coverage,
+            exclude_criteria=skipped_criteria,
+        )
+
+        # Update skip state
+        skip_state["current_question_is_adapted"] = False
+        skip_state["has_submitted_for_current"] = False
+        skip_state["skipped_criteria"] = skipped_criteria
+        skip_state["current_criteria"] = [
+            c.id for c in question_service.select_target_criteria(
+                rubric=rubric.parsed_criteria,
+                coverage=session.rubric_coverage,
+                exclude_criteria=skipped_criteria,
+            )[:5]
+        ]
+        exam_service.update_session_skip_state(session_id, skip_state)
+
+        # Add new question to transcript
+        transcript_service.add_question(session_id, next_question)
+
+        # Check if exam should be complete (with remaining criteria)
+        completion_result = await coverage_service.check_completion_with_exclusions(
+            rubric=rubric.parsed_criteria,
+            coverage=session.rubric_coverage,
+            excluded_criteria=skipped_criteria,
+        )
+
+        if completion_result.is_complete:
+            exam_service.complete_session(session_id)
+            return ProcessedResponse(
+                next_question="",
+                question_number=transcript_service.count_questions(session_id),
+                is_final=True,
+                is_adapted=False,
+                coverage_pct=coverage_pct,
+                struggle_event=skip_event,
+                teacher_message=None,
+            )
+
+        return ProcessedResponse(
+            next_question=next_question,
+            question_number=transcript_service.count_questions(session_id),
+            is_final=False,
+            is_adapted=False,
+            coverage_pct=coverage_pct,
+            struggle_event=skip_event,
+            teacher_message="Moving to a new topic",
+        )

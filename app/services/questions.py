@@ -4,7 +4,10 @@ Question Generation Service
 Handles dynamic question generation based on rubric and conversation context.
 """
 
+from typing import Optional
+
 from app.models.domain import (
+    Criterion,
     ParsedRubric,
     CoverageMap,
     TranscriptEntry,
@@ -63,23 +66,7 @@ async def generate_question(
     """
     client = get_llm_client()
 
-    # Identify uncovered or partially covered criteria
-    uncovered = []
-    partially_covered = []
-
-    for criterion in rubric.criteria:
-        cov = coverage.covered_criteria.get(criterion.id, 0.0)
-        if cov < 0.3:
-            uncovered.append(criterion)
-        elif cov < 0.7:
-            partially_covered.append(criterion)
-
-    # Prioritize uncovered, then partially covered
-    target_criteria = uncovered if uncovered else partially_covered
-
-    if not target_criteria:
-        # All criteria well covered, ask a synthesis question
-        target_criteria = rubric.criteria
+    target_criteria = select_target_criteria(rubric, coverage)
 
     criteria_text = "\n".join([
         f"- {c.name}: {c.description} (coverage: {coverage.covered_criteria.get(c.id, 0)*100:.0f}%)"
@@ -180,3 +167,100 @@ Generate a question that requires integrating knowledge from multiple areas."""
     )
 
     return question.strip()
+
+
+async def generate_question_excluding_criteria(
+    rubric: ParsedRubric,
+    transcript: list[TranscriptEntry],
+    coverage: CoverageMap,
+    exclude_criteria: list[str],
+) -> str:
+    """
+    Generate a question that targets criteria NOT in the exclude list.
+    Used when a student has skipped a criterion entirely and needs a new topic.
+
+    Args:
+        rubric: Parsed rubric with criteria
+        transcript: Conversation history
+        coverage: Current coverage state
+        exclude_criteria: List of criterion IDs to exclude (skipped criteria)
+
+    Returns:
+        Generated question text for a different topic
+    """
+    client = get_llm_client()
+
+    target_criteria = select_target_criteria(
+        rubric,
+        coverage,
+        exclude_criteria=exclude_criteria,
+    )
+
+    if not target_criteria:
+        # All criteria excluded - ask a general wrap-up question
+        return await generate_synthesis_question(rubric, transcript)
+
+    criteria_text = "\n".join([
+        f"- {c.name}: {c.description} (coverage: {coverage.covered_criteria.get(c.id, 0)*100:.0f}%)"
+        for c in target_criteria[:5]
+    ])
+
+    excluded_text = ", ".join(exclude_criteria) if exclude_criteria else "None"
+
+    # Build recent transcript context
+    recent = transcript[-6:] if len(transcript) > 6 else transcript
+    transcript_text = "\n".join([
+        f"[{e.entry_type.value}]: {e.content[:200]}..."
+        if len(e.content) > 200 else f"[{e.entry_type.value}]: {e.content}"
+        for e in recent
+    ]) or "This is the start of the exam."
+
+    prompt = f"""Generate a NEW question on a DIFFERENT topic than the previous questions.
+The student has chosen to skip the previous topic.
+
+TARGET CRITERIA (focus on these new topics):
+{criteria_text}
+
+SKIPPED CRITERIA (do NOT ask about these):
+{excluded_text}
+
+RECENT CONVERSATION:
+{transcript_text}
+
+Generate a question that explores a new area of the rubric, moving away from the previous topic."""
+
+    question = await client.complete(
+        prompt=prompt,
+        system_prompt=GENERATE_QUESTION_SYSTEM_PROMPT,
+        temperature=0.7,
+    )
+
+    return question.strip()
+
+
+def select_target_criteria(
+    rubric: ParsedRubric,
+    coverage: CoverageMap,
+    exclude_criteria: Optional[list[str]] = None,
+) -> list[Criterion]:
+    exclude = set(exclude_criteria or [])
+    available_criteria = [c for c in rubric.criteria if c.id not in exclude]
+
+    if not available_criteria:
+        return []
+
+    uncovered = []
+    partially_covered = []
+
+    for criterion in available_criteria:
+        cov = coverage.covered_criteria.get(criterion.id, 0.0)
+        if cov < 0.3:
+            uncovered.append(criterion)
+        elif cov < 0.7:
+            partially_covered.append(criterion)
+
+    target_criteria = uncovered if uncovered else partially_covered
+    if not target_criteria:
+        target_criteria = available_criteria
+
+    return target_criteria
