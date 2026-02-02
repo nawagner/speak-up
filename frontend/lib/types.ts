@@ -199,6 +199,7 @@ export interface VoiceOption {
   name: string
   description?: string
   preview_url?: string
+  labels?: Record<string, string>
 }
 
 export interface VoicePreference {

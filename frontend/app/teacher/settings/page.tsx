@@ -42,6 +42,69 @@ const LANGUAGES = [
   { code: 'zh', name: 'Chinese', flag: '🇨🇳' },
 ]
 
+// Language labels used by ElevenLabs for voice categorization
+const LANGUAGE_LABEL_MATCHES: Record<string, string[]> = {
+  en: ['english', 'en', 'en-us', 'en-gb', 'american', 'british'],
+  es: ['spanish', 'es', 'español', 'es-es', 'es-mx'],
+  fr: ['french', 'fr', 'français', 'fr-fr'],
+  de: ['german', 'de', 'deutsch', 'de-de'],
+  zh: ['chinese', 'zh', 'mandarin', 'zh-cn', 'zh-tw'],
+}
+
+// Fallback default voice ID (Rachel - English) if no match found
+const FALLBACK_VOICE_ID = '21m00Tcm4TlvDq8ikWAM'
+
+/**
+ * Find the best matching voice for a given language from available options.
+ * Checks voice labels and description for language matches.
+ */
+function findDefaultVoiceForLanguage(
+  languageCode: string,
+  options: VoiceOption[]
+): VoiceOption | undefined {
+  if (options.length === 0) return undefined
+
+  const matchTerms = LANGUAGE_LABEL_MATCHES[languageCode] || []
+
+  // For English, prefer Rachel or the first available voice
+  if (languageCode === 'en') {
+    return options.find((v) => v.voice_id === FALLBACK_VOICE_ID) || options[0]
+  }
+
+  if (matchTerms.length === 0) return options[0]
+
+  // Look for voices with matching language in labels
+  for (const voice of options) {
+    if (voice.labels) {
+      const labelValues = Object.values(voice.labels).map((v) => v.toLowerCase())
+      const labelKeys = Object.keys(voice.labels).map((k) => k.toLowerCase())
+      const allLabels = [...labelKeys, ...labelValues]
+
+      for (const term of matchTerms) {
+        if (allLabels.some((label) => label.includes(term))) {
+          return voice
+        }
+      }
+    }
+  }
+
+  // Check voice description for language mentions
+  for (const voice of options) {
+    if (voice.description) {
+      const descLower = voice.description.toLowerCase()
+      for (const term of matchTerms) {
+        if (descLower.includes(term)) {
+          return voice
+        }
+      }
+    }
+  }
+
+  // If no language match found, use the first voice as a reasonable default
+  // (Most voices support multiple languages via Eleven Multilingual)
+  return options[0]
+}
+
 export default function TeacherSettingsPage() {
   const router = useRouter()
   const { isLoading: authLoading, isAuthenticated } = useAuth()
@@ -75,8 +138,23 @@ export default function TeacherSettingsPage() {
           voice.getCustomVoices(),
         ])
         setVoiceOptions(options)
-        setPreferences(prefs.preferences)
         setCustomVoices(custom)
+
+        // Populate defaults for languages without preferences
+        const prefsWithDefaults = { ...prefs.preferences }
+        for (const lang of LANGUAGES) {
+          if (!prefsWithDefaults[lang.code]?.voice_id) {
+            const defaultVoice = findDefaultVoiceForLanguage(lang.code, options)
+            if (defaultVoice) {
+              prefsWithDefaults[lang.code] = {
+                language_code: lang.code,
+                voice_id: defaultVoice.voice_id,
+                voice_name: defaultVoice.name,
+              }
+            }
+          }
+        }
+        setPreferences(prefsWithDefaults)
       } catch (error) {
         const message =
           error instanceof Error ? error.message : 'Failed to load voice settings'
