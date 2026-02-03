@@ -1,6 +1,8 @@
-# Speak-Up 🎤
+# Speak-Up
 
 An AI-powered oral exam platform for teachers that uses LLM technology to dynamically generate questions, track student progress, and provide real-time support.
+
+**Live Demo**: [https://speak-up-26i.pages.dev](https://speak-up-26i.pages.dev)
 
 ## Overview
 
@@ -14,30 +16,33 @@ Speak-Up enables teachers to conduct oral examinations where:
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                  Next.js Frontend                        │
-│                 http://localhost:3000                    │
-│  ┌──────────────┐  ┌───────────────┐                    │
-│  │   Student    │  │    Teacher    │                    │
-│  │     UI       │  │   Dashboard   │                    │
-│  └──────────────┘  └───────────────┘                    │
-└───────────────────────┬─────────────────────────────────┘
-                        │
-                        ▼
-┌─────────────────────────────────────────────────────────┐
-│                  FastAPI Backend                         │
-│                 http://localhost:8000                    │
-│  ┌──────────────┐  ┌───────────────┐  ┌──────────────┐ │
-│  │   Student    │  │    Internal   │  │   DuckDB     │ │
-│  │     API      │  │  Teacher API  │  │   Database   │ │
-│  └──────────────┘  └───────────────┘  └──────────────┘ │
-│                         │                                │
-│                         ▼                                │
-│              ┌──────────────────────┐                    │
-│              │  OpenRouter/Gemini   │                    │
-│              │   (LLM Services)     │                    │
-│              └──────────────────────┘                    │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                    Next.js 15 Frontend                          │
+│               Cloudflare Pages (speak-up-26i.pages.dev)         │
+│  ┌──────────────────┐    ┌───────────────────────┐             │
+│  │   Student UI     │    │   Teacher Dashboard   │             │
+│  │ (Audio Recording)│    │  (Exam Monitoring)    │             │
+│  └──────────────────┘    └───────────────────────┘             │
+└──────────────────────────────┬──────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      FastAPI Backend                            │
+│                        Railway.app                              │
+│  ┌──────────────┐  ┌───────────────┐  ┌──────────────────────┐ │
+│  │   Student    │  │    Internal   │  │       DuckDB         │ │
+│  │     API      │  │  Teacher API  │  │      Database        │ │
+│  └──────────────┘  └───────────────┘  └──────────────────────┘ │
+│          │                 │                                    │
+│          ▼                 ▼                                    │
+│  ┌───────────────────────────────────────────────────────────┐ │
+│  │                   External Services                        │ │
+│  │  ┌─────────────────────┐  ┌─────────────────────────────┐ │ │
+│  │  │  OpenRouter/Gemini  │  │        ElevenLabs           │ │ │
+│  │  │   (LLM Services)    │  │   (Text-to-Speech / STT)    │ │ │
+│  │  └─────────────────────┘  └─────────────────────────────┘ │ │
+│  └───────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ## Key Features
@@ -48,6 +53,7 @@ Speak-Up enables teachers to conduct oral examinations where:
 - **Struggle Alerts**: Automatic notifications when students need help
 - **Full Intervention**: Send messages, override questions, or terminate sessions
 - **Analytics**: Detailed metrics on coverage, duration, and common struggle points
+- **Voice Customization**: Select different voices per language for TTS
 
 ### LLM-Powered Intelligence
 - **Parallel Analysis**: Coverage and struggle detection run simultaneously for speed
@@ -55,17 +61,22 @@ Speak-Up enables teachers to conduct oral examinations where:
 - **Adaptive Support**: Questions automatically simplified when struggles detected
 - **Smart Completion**: Exam ends when all rubric criteria sufficiently covered
 
-### API for Students
-- REST API for student applications to join exams and submit responses
-- Responses expected as transcripts (from speech-to-text conversion)
-- Questions returned as text (for text-to-speech conversion)
+### Audio & Multi-Language Support
+- **Voice Recording**: Students record audio responses directly in browser
+- **Speech-to-Text**: Audio transcribed via ElevenLabs Scribe
+- **Text-to-Speech**: Questions read aloud using ElevenLabs voices
+- **Multi-Language**: Support for English, Spanish, French, German, and Chinese
+- **Voice Selection**: Teachers can choose different voices per language
+- **Question Skipping**: Two-stage skip (adapt question first, then move to new topic)
 
 ## Installation
 
 ### Prerequisites
 - Python 3.12+
+- Node.js 18+ (for frontend)
 - [uv](https://docs.astral.sh/uv/) (recommended) or pip
 - OpenRouter API key ([get one here](https://openrouter.ai/keys))
+- ElevenLabs API key ([get one here](https://elevenlabs.io)) - for audio features
 
 ### Setup
 
@@ -95,9 +106,10 @@ Speak-Up enables teachers to conduct oral examinations where:
    cp .env.example .env
    ```
 
-   Edit `.env` and set your OpenRouter API key:
+   Edit `.env` and set your API keys:
    ```env
    OPENROUTER_API_KEY=your_key_here
+   ELEVENLABS_API_KEY=your_key_here
    ```
 
 4. **Initialize the database**
@@ -175,7 +187,7 @@ Response:
 }
 ```
 
-### Submit a Response
+### Submit a Text Response
 
 ```bash
 POST /api/v1/session/{session_id}/response
@@ -195,6 +207,19 @@ Response:
 }
 ```
 
+### Submit an Audio Response
+
+```bash
+POST /api/v1/session/{session_id}/audio
+Content-Type: multipart/form-data
+
+Form fields:
+- audio: Audio file (WAV, WebM, MP4, or OGG)
+- question: Current question text
+
+Response: Same as Submit Response
+```
+
 ### Get Current Question
 
 ```bash
@@ -208,6 +233,40 @@ Response:
   "is_adapted": false,
   "message": null
 }
+```
+
+### Get Question Audio (TTS)
+
+```bash
+GET /api/v1/session/{session_id}/tts?text=...&language=en
+
+Query parameters:
+- text: Question text to convert
+- language: Language code (en, es, fr, de, zh)
+
+Response: audio/mpeg (MP3 data)
+```
+
+### Translate Question
+
+```bash
+GET /api/v1/session/{session_id}/translate?text=...&language=es
+
+Response:
+{
+  "original_text": "...",
+  "translated_text": "...",
+  "language": "es"
+}
+```
+
+### Skip Question
+
+```bash
+POST /api/v1/session/{session_id}/skip
+
+Response: Same as Submit Response
+Note: Must submit at least one response before skipping. First skip adapts question; second skip moves to new topic.
 ```
 
 ### Leave Exam
@@ -230,9 +289,15 @@ POST /api/v1/session/{session_id}/leave
 - `struggle_events` - Detected struggles with reasoning
 - `analytics_snapshots` - Aggregated metrics
 
+### Voice Preference Tables
+- `teacher_voice_preferences` - Voice selection per language per teacher
+- `teacher_custom_voices` - Custom ElevenLabs voice IDs
+
 ## LLM Services
 
-The application uses **Gemini 3 Flash** via OpenRouter for:
+The application uses **Gemini 3 Flash Preview** (`google/gemini-3-flash-preview`) via OpenRouter. The model is configurable via the `LLM_MODEL` environment variable.
+
+LLM capabilities:
 
 1. **Rubric Parsing** (`coverage.py`)
    - Extracts structured criteria from Markdown
@@ -251,6 +316,9 @@ The application uses **Gemini 3 Flash** via OpenRouter for:
 5. **Question Adaptation** (`struggle.py`)
    - Simplifies questions when struggles detected
 
+6. **Text Translation** (`tts.py`)
+   - Translates questions to supported languages
+
 ## Configuration
 
 ### Environment Variables
@@ -258,6 +326,9 @@ The application uses **Gemini 3 Flash** via OpenRouter for:
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `OPENROUTER_API_KEY` | OpenRouter API key | Required |
+| `ELEVENLABS_API_KEY` | ElevenLabs API key (TTS/STT) | Required for audio |
+| `ELEVENLABS_VOICE_ID` | Default voice ID | `21m00Tcm4TlvDq8ikWAM` (Rachel) |
+| `LLM_MODEL` | LLM model identifier | `google/gemini-3-flash-preview` |
 | `DUCKDB_PATH` | Database file location | `./data/speak_up.duckdb` |
 | `JWT_SECRET` | Secret for JWT tokens | Change in production |
 | `JWT_EXPIRE_MINUTES` | Token expiration | `1440` (24 hours) |
@@ -271,34 +342,52 @@ speak-up/
 ├── app/                      # FastAPI backend
 │   ├── api/
 │   │   ├── routes/
-│   │   │   ├── student.py   # Student-facing endpoints
-│   │   │   └── internal.py  # Teacher-facing endpoints
-│   │   └── schemas.py       # Pydantic models
+│   │   │   ├── student.py    # Student API (join, response, audio, tts)
+│   │   │   └── internal.py   # Teacher API (auth, rubrics, exams, voice)
+│   │   └── schemas.py        # Pydantic models
 │   ├── services/
-│   │   ├── auth.py          # Authentication
-│   │   ├── exam.py          # Exam management
-│   │   ├── rubric.py        # Rubric CRUD
-│   │   ├── coverage.py      # Coverage analysis (LLM)
-│   │   ├── struggle.py      # Struggle detection (LLM)
-│   │   ├── questions.py     # Question generation (LLM)
-│   │   ├── transcript.py    # Transcript storage
-│   │   ├── orchestrator.py  # Response processing
-│   │   └── llm_client.py    # OpenRouter client
+│   │   ├── auth.py           # Authentication
+│   │   ├── exam.py           # Exam management
+│   │   ├── rubric.py         # Rubric CRUD
+│   │   ├── coverage.py       # Coverage analysis (LLM)
+│   │   ├── struggle.py       # Struggle detection (LLM)
+│   │   ├── questions.py      # Question generation (LLM)
+│   │   ├── transcript.py     # Transcript storage
+│   │   ├── orchestrator.py   # Response processing
+│   │   ├── llm_client.py     # OpenRouter client
+│   │   ├── tts.py            # Text-to-speech (ElevenLabs)
+│   │   └── voice.py          # Voice preference management
 │   ├── models/
-│   │   └── domain.py        # Domain models
-│   ├── config.py            # Configuration
-│   ├── database.py          # DuckDB setup
-│   └── main.py              # FastAPI app
-├── frontend/                 # Next.js frontend
+│   │   └── domain.py         # Domain models
+│   ├── config.py             # Configuration
+│   ├── database.py           # DuckDB setup
+│   └── main.py               # FastAPI app
+├── frontend/                  # Next.js 15 frontend
 │   ├── app/
-│   │   ├── student/         # Student exam UI
-│   │   └── teacher/         # Teacher dashboard
-│   ├── components/          # React components
-│   └── lib/                 # API client and utilities
-├── data/                    # Database files (created on first run)
-├── tests/                   # Test files
-├── requirements.txt         # Python dependencies
-└── .env                     # Environment configuration
+│   │   ├── student/          # Student exam UI
+│   │   │   ├── join/         # Room code entry
+│   │   │   └── exam/         # Audio recording interface
+│   │   └── teacher/          # Teacher dashboard
+│   │       ├── login/        # Authentication
+│   │       ├── dashboard/    # Overview
+│   │       ├── rubrics/      # Rubric management
+│   │       ├── exam/         # Exam start & monitor
+│   │       └── settings/     # Voice preferences
+│   ├── components/           # React components
+│   │   ├── ui/               # Radix UI components
+│   │   └── audio-recorder.tsx
+│   ├── hooks/                # Custom React hooks
+│   │   ├── use-audio-recorder.ts
+│   │   └── use-question-audio.ts
+│   └── lib/                  # API client and utilities
+├── data/
+│   └── rubrics/              # Sample rubric files
+├── scripts/
+│   └── seed_rubrics.py       # Database seeding script
+├── tests/                    # Backend tests
+├── railway.toml              # Railway deployment config
+├── requirements.txt          # Python dependencies
+└── .env                      # Environment configuration
 ```
 
 ## Development
@@ -323,6 +412,49 @@ The DuckDB database can be inspected using any DuckDB client or the CLI:
 duckdb data/speak_up.duckdb
 ```
 
+### Seed Sample Rubrics
+
+The repository includes sample rubrics in `data/rubrics/`. To import them:
+
+```bash
+python scripts/seed_rubrics.py
+```
+
+This creates a demo teacher account (`demo_teacher`/`demo123`) and imports:
+- French Oral Exam Rubric
+- Ernest Hemingway Literature Oral Exam Rubric
+- World War II Oral Exam Rubric
+
+## Deployment
+
+### Production Architecture
+- **Frontend**: Cloudflare Pages (Next.js with `@cloudflare/next-on-pages`)
+- **Backend**: Railway.app (FastAPI with uvicorn)
+- **Database**: DuckDB (file-based, deployed with backend)
+
+### Deploy Frontend (Cloudflare Pages)
+
+```bash
+cd frontend
+npm run pages:build
+npx wrangler pages deploy
+```
+
+### Deploy Backend (Railway)
+
+The backend is configured via `railway.toml`:
+- Build: Nixpacks (auto-detects Python)
+- Start: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+- Health check: `/health`
+
+### Environment Variables for Production
+
+Set these in your deployment platform:
+- `OPENROUTER_API_KEY` - Required
+- `ELEVENLABS_API_KEY` - Required for audio features
+- `JWT_SECRET` - Use a strong random value
+- `DUCKDB_PATH` - Persistent storage path
+
 ## Example Rubric Format
 
 ```markdown
@@ -346,6 +478,7 @@ duckdb data/speak_up.duckdb
 - One active exam per teacher at a time
 - Manual refresh for live monitoring (no WebSockets)
 - Requires OpenRouter API credits for LLM calls
+- Requires ElevenLabs API credits for audio features
 
 ## License
 
@@ -357,4 +490,4 @@ For issues or questions, please open an issue on GitHub.
 
 ---
 
-Built with FastAPI, Next.js, DuckDB, and Gemini 3 Flash via OpenRouter.
+Built with FastAPI, Next.js 15, React 19, DuckDB, Gemini 3 Flash Preview via OpenRouter, and ElevenLabs for audio.
